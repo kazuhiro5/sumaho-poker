@@ -98,7 +98,7 @@ function seatHTML(p, i, n, mode) {
   const ring = cls.includes('turn')
     ? `<svg class="ring" viewBox="0 0 100 100" preserveAspectRatio="none"><rect x="2" y="2" width="96" height="96" rx="14" pathLength="100" style="--len:100"/></svg>` : '';
   return `<div class="${cls.join(' ')}" style="left:${x}%;top:${y}%">
-    <div class="hole">${hole}</div>
+    <div class="hole" ${mode === 'show' ? 'style="--w:48px"' : ''}>${hole}</div>
     <div class="box">${ring}${p.dealer ? '<div class="btn-d">D</div>' : ''}
       <div class="nm">${p.name}</div><div class="ch">${yen(p.chips)}</div><div class="tag">${tag}</div>
     </div>${bet}</div>`;
