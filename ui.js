@@ -264,7 +264,7 @@ function resultHTML(S, forHost) {
 UI.render = () => {
   const app = $('#app');
   if (N.status === 'error') { app.innerHTML = `<div class="home"><h1>うまくいきませんでした</h1><p>${esc(UI.err)}</p><button class="go" data-do="home">最初の画面へ</button></div>`; return; }
-  if (N.status === 'connecting') { app.innerHTML = `<div class="home"><h1>つないでいます…</h1></div>`; return; }
+  if (N.status === 'connecting') { app.innerHTML = `<div class="home"><h1>つないでいます…</h1>${N.connMsg ? `<p>${esc(N.connMsg)}</p>` : ''}</div>`; return; }
   const S = N.S;
   if (!N.role || !S) { app.innerHTML = homeHTML(); return; }
   if (N.role === 'host') {

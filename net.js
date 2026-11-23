@@ -18,8 +18,8 @@ const N = {
 };
 
 /* ---------- 親（iPad） ---------- */
-function hostCreate(resume) {
-  N.status = 'connecting'; UI.render();
+function hostCreate(resume, tries = 0) {
+  N.status = 'connecting'; N.connMsg = resume ? `前の部屋（${resume.room}）を取り戻しています…` + (tries ? `（${tries}回目）` : '') : ''; UI.render();
   const room = resume ? resume.room : String(Math.floor(1000 + Math.random() * 9000));
   N.peer = new Peer(PREFIX + room);
   N.peer.on('open', () => {
@@ -29,7 +29,7 @@ function hostCreate(resume) {
     N.G = resume ? resume.G : PokerEngine.createGame({});
     N.G.players.forEach((p) => { p.online = false; });
     N.paused = resume ? true : false; // 続きから始めた時は、親が「再開」を押すまで止める
-    keepAwake(); hostSync();
+    keepAwake(); hostSync(); guardBack();
   });
   N.peer.on('connection', (c) => {
     c.on('data', (m) => {
@@ -53,6 +53,12 @@ function hostCreate(resume) {
   N.peer.on('disconnected', () => { try { N.peer.reconnect(); } catch (e) { /* noop */ } });
   N.peer.on('error', (e) => {
     if (e.type === 'unavailable-id' && !N.G && !resume) { N.peer.destroy(); hostCreate(); return; }
+    // 続きから：前のページが部屋番号をまだ持っている（仲介サーバーが離したことに気づくまで少しかかる）。3秒おきに取り直す
+    if (e.type === 'unavailable-id' && !N.G && resume && tries < 25) {
+      try { N.peer.destroy(); } catch (x) { /* noop */ }
+      setTimeout(() => hostCreate(resume, tries + 1), 3000); return;
+    }
+    if (e.type === 'unavailable-id' && !N.G && resume) { UI.fail(`前の部屋（${resume.room}）を取り戻せませんでした。少し待ってからもう一度「前のゲームを続ける」を押してください。`); return; }
     if (!N.G) UI.fail('部屋を作れませんでした（' + e.type + '）。通信環境を確かめて、もう一度お試しください。');
   });
 }
@@ -210,9 +216,25 @@ function clientSend(m) {
 }
 
 function leaveRoom() {
+  N.leaving = true;
   if (N.role === 'host') {
     N.conns.forEach((c) => { try { if (c.open) c.send({ t: 'closed' }); } catch (e) { /* noop */ } });
     store.del('sp-host');
   } else clientSend({ t: 'leave' });
   setTimeout(() => { try { N.peer.destroy(); } catch (e) { /* noop */ } location.href = location.pathname; }, 300);
+}
+
+// ページを離れる時に部屋番号を仲介サーバーへ返す（返さないと、続きから始める時に「使用中」になる）
+window.addEventListener('pagehide', () => { try { if (N.peer && !N.peer.destroyed) N.peer.destroy(); } catch (e) { /* noop */ } });
+
+// ゲーム中のiPadで「戻る」を押してもページから出ない（間違えて戻るのを防ぐ）
+function guardBack() {
+  if (N.role !== 'host' || N.guarded) return;
+  N.guarded = true;
+  history.pushState({ stay: 1 }, '', location.href);
+  window.addEventListener('popstate', () => {
+    if (N.role !== 'host' || !N.G || N.G.phase === 'end' || N.leaving) return;
+    history.pushState({ stay: 1 }, '', location.href);
+    UI.toast('ゲーム中は戻れません。終わる時は ☰ の「ここで終わる」を使ってください');
+  });
 }
