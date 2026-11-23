@@ -184,3 +184,20 @@ button.pill{font-size:16px}
 .blindctl b{font-size:22px}
 .blindctl .chg{outline:2px solid var(--gold)} .blindctl .chg b{color:var(--gold)}
 .mclose{margin-top:14px}
+/* 右下の丸いタイマー・左下のゲーム情報（2026-11-23） */
+.log{display:none}
+.ctimer{position:absolute;right:16px;bottom:16px;width:104px;height:104px;z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ctimer svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.ctimer circle{fill:rgba(0,0,0,.45);stroke-width:8}
+.ctimer .bg{stroke:rgba(255,255,255,.12)}
+.ctimer .fg{fill:none;stroke:var(--gold);stroke-dasharray:100;stroke-linecap:round;transition:stroke-dashoffset .1s linear}
+.ctimer b{position:relative;font-size:40px;line-height:1}
+.ctimer small{position:relative;font-size:11px;color:var(--muted)}
+.ctimer.next .fg{stroke:#7fc3a0}
+.ctimer.hurry .fg{stroke:var(--red)} .ctimer.hurry b{color:#ff8a80}
+.ginfo{position:absolute;left:16px;bottom:16px;z-index:4;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;max-width:calc(100% - 160px);font-size:17px}
+.ginfo b{font-size:20px;background:rgba(0,0,0,.35);padding:4px 12px;border-radius:10px}
+.ginfo .lbl{color:var(--muted);font-size:14px}
+.ginfo .plus{color:var(--gold);font-weight:800}
+.ginfo .minus{color:#e8a0a0}
+.mhead .icon{background:var(--btn);padding:8px 14px;border-radius:999px;width:auto;height:auto;font-size:15px}

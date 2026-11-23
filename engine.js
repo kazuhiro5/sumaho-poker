@@ -233,7 +233,8 @@
       if (G.settings.rebuy) { p.chips = G.settings.stack; p.rebuys++; rebought.push(id); say(G, `${p.name} チップをもう一度もらいました`); }
       else { p.out = true; say(G, `${p.name} 脱落`); }
     });
-    h.result = { showdown, won, pots: potsOut, rebought,
+    const net = {}; h.ids.forEach((id) => { const v = (won[id] || 0) - h.contrib[id]; if (v) net[id] = v; });
+    h.result = { showdown, won, net, pots: potsOut, rebought,
       hands: Object.fromEntries(Object.entries(hands).map(([id, v]) => [id, { name: v.name, detail: v.detail }])) };
     G.phase = 'between';
   }

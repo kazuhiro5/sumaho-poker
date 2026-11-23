@@ -110,11 +110,31 @@ function topbarHTML(S) {
     ${blindsChanged(S) ? `<span class="pill warn">→ 次から ${S.blinds.join(' / ')}</span>` : ''}${nextUp}
     ${S.paused && !UI.menu ? '<button class="pill warn" data-do="resume-game">⏸ 一時停止中　▶ 再開する</button>' : ''}
   </div>`;
-  return `${left}<div class="corner-r">
-    <span class="roomno">${esc(S.room)}</span>
-    ${S.phase !== 'lobby' ? '<button class="icon" data-do="menu">☰</button>' : ''}
-    <button class="icon" data-do="mute">${muted ? '🔇' : '🔊'}</button>
-  </div>`;
+  // 部屋番号と音のオン・オフはメニューの中だけ（2026-11-23 オーナー）
+  return `${left}${S.phase !== 'lobby' ? '<div class="corner-r"><button class="icon" data-do="menu">☰</button></div>' : ''}`;
+}
+// 右下の丸いタイマー：手番は残り10秒から、次のゲームまでは最初から。線が減っていき、中に秒数
+function timerHTML(S) {
+  if (S.paused) return '';
+  let until = 0, total = 10, kind = '';
+  if (S.phase === 'hand' && S.deadline) { until = S.deadline; total = 10; kind = 'turn'; }
+  if (S.phase === 'between' && S.nextAt) { until = S.nextAt; total = Math.round((S.nextAt - S.now) / 1000) || 8; kind = 'next'; }
+  if (!until) return '';
+  return `<div class="ctimer ${kind}" data-timer="${until}" data-total="${total}" hidden>
+    <svg viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="44"/><circle class="fg" cx="50" cy="50" r="44" pathLength="100"/></svg>
+    <b>--</b><small>${kind === 'next' ? '次のゲーム' : ''}</small></div>`;
+}
+// 左下：何ゲーム目か＋直前のゲームの増減
+function gameInfoHTML(S) {
+  if (S.phase === 'between' && S.result) UI.lastResult = { no: S.handNo, net: S.result.net || {} };
+  const lr = UI.lastResult;
+  let res = '';
+  if (lr && lr.net) {
+    const ids = Object.keys(lr.net).sort((a, b) => lr.net[b] - lr.net[a]);
+    res = ids.map((id) => `<span class="${lr.net[id] > 0 ? 'plus' : 'minus'}">${esc(nameOf(S, id))} ${lr.net[id] > 0 ? '＋' : '−'}${num(Math.abs(lr.net[id]))}</span>`).join('');
+    res = `<span class="lbl">${lr.no === S.handNo ? '結果' : '前回'}</span>${res}`;
+  }
+  return `<div class="ginfo"><b>第${S.handNo}ゲーム</b>${res}${S.paused ? '<span class="lbl">⏸ 一時停止中（スマホの操作も止まっています）</span>' : ''}</div>`;
 }
 
 /* ---------- iPad：ロビー ---------- */
@@ -196,16 +216,12 @@ function tableHTML(S) {
       <small>${h ? `${h.name}${h.detail ? '（' + h.detail + '）' : ''}` : 'ほかの人が全員降りました'}</small></div>`;
   }
   if (S.phase === 'waiting') banner = `<div class="banner">遊べる人が2人未満です<small>参加者が来たら「次のゲーム」を押してください</small></div>`;
-  let foot = (S.log || []).slice(0, 3).reverse().map(esc).join(' ／ ');
-  if (S.phase === 'hand' && S.toAct) foot += ` ／ <b>${esc(nameOf(S, S.toAct))} の番</b>` + (S.deadline && !S.paused ?`（残り <b data-until="${S.deadline}" data-sec="1">--</b>秒）` : '');
-  if (S.phase === 'between') foot = `次のゲームまで <b data-until="${S.nextAt}" data-sec="1">--</b>秒`;
-  if (S.paused) foot = '一時停止中（スマホの操作も止まっています）';
   return `<div class="table-view">${topbarHTML(S)}
     <div class="stage"><div class="felt"></div>
       ${seats.map((p, i) => seatHTML(S, p, i, seats.length)).join('')}
       ${banner}<div class="center">${center}</div>
     </div>
-    <div class="log">${foot}</div>
+    ${gameInfoHTML(S)}${timerHTML(S)}
     ${UI.menu ? menuHTML(S) : ''}
   </div>`;
 }
@@ -214,7 +230,8 @@ function menuHTML(S) {
     <span><button data-add="${p.id}">＋${num(S.settings.stack)}</button><button data-kick="${p.id}">外す</button></span></div>`).join('');
   const L = PokerEngine.LEVELS, lv = N.G.level;
   return `<div class="sheet"><div class="in wide">
-    <div class="mhead"><h3>メニュー</h3><span>部屋 <b>${esc(S.room)}</b>　⏸ 一時停止中</span></div>
+    <div class="mhead"><h3>メニュー</h3><span>部屋 <b>${esc(S.room)}</b>　⏸ 一時停止中</span>
+      <button class="icon" data-do="mute">${muted ? '🔇 音なし' : '🔊 音あり'}</button></div>
     <h3>ブラインド</h3>
     <div class="blindctl">
       <button data-do="leveldown" ${lv <= 0 ? 'disabled' : ''}>◀ 下げる</button>
@@ -277,5 +294,13 @@ UI.tick = () => {
     const ms = +el.dataset.until - (Date.now() - skew);
     el.textContent = el.dataset.sec ? Math.max(0, Math.ceil(ms / 1000)) : mmss(ms);
   });
+  document.querySelectorAll('[data-timer]').forEach((el) => {
+    const ms = +el.dataset.timer - (Date.now() - skew), total = +el.dataset.total * 1000;
+    el.hidden = ms > total || ms <= 0;
+    if (el.hidden) return;
+    el.querySelector('b').textContent = Math.ceil(ms / 1000);
+    el.querySelector('.fg').style.strokeDashoffset = String(100 - (ms / total) * 100);
+    el.classList.toggle('hurry', el.classList.contains('turn') && ms <= 5000);
+  });
 };
-setInterval(UI.tick, 500);
+setInterval(UI.tick, 100);
