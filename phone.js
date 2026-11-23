@@ -6,7 +6,7 @@ UI.phoneHTML = (S, ME) => {
   const o = ME && ME.options;
   // 左上＝ブラインド、右上＝名前と☰（退出・離席・部屋番号・音はメニューの中）
   const head = `<div class="me"><span class="bl">${S.phase === 'lobby' ? '待機中' : `BLINDS ${(S.handBlinds || S.blinds).join(' / ')}`}</span>
-    <span class="who"><span class="nm">${esc(me.name)}</span><button class="mbtn" data-do="pmenu">☰</button></span></div>`;
+    <span class="who"><span class="nm">${esc(me.name)}</span><button class="mbtn" data-do="pmenu">${ic('menu')}</button></span></div>`;
   const tail = PH.menu ? phoneMenuHTML(S, me) : '';
   const side = `<div class="side chipside"><div><small>POT</small>${stackHTML(S.pot || 0, 'l')}</div><div class="mine"><small>手元のチップ</small>${stackHTML(me.chips, 'l')}</div></div>`;
 
@@ -23,14 +23,14 @@ UI.phoneHTML = (S, ME) => {
     const ws = Object.keys(r.won);
     const myWin = r.won[myId], h = r.hands && r.hands[ws[0]], mine = r.hands && r.hands[myId];
     return `<div class="hand-view ${myWin ? 'myturn' : ''}">${head}
-      <div class="waitmsg"><b>${myWin ? `あなたの勝ち ＋${num(myWin)}` : `${ws.map((id) => esc(nameOf(S, id))).join('・')} の勝ち`}</b>
+      <div class="waitmsg"><b>${myWin ? `<span class="win">WIN</span> あなた ＋${num(myWin)}` : `<span class="win">WIN</span> ${ws.map((id) => esc(nameOf(S, id))).join('・')}`}</b>
         ${h ? h.name : 'ほかの人が全員降りました'}${mine && !myWin ? `<br>あなたは ${mine.name}` : ''}
         ${r.rebought && r.rebought.includes(myId) ? '<br>チップをもう一度もらいました' : ''}</div>
       <div class="peek"><div class="cards">${ME.hole.map((c) => card(c)).join('')}</div></div>${side}${tail}</div>`;
   }
   const faces = PH.peeking ? ME.hole.map((c) => card(c)).join('') : card('back') + card('back');
   let status;
-  if (S.paused) status = '⏸ 一時停止中です（iPadで再開するまで待ってください）';
+  if (S.paused) status = `${ic('pause_circle')} 一時停止中です（iPadで再開するまで待ってください）`;
   else if (me.sitOut && !ME.folded) status = '離席中です（このゲームは自動で進みます。☰で席に戻れます）';
   else if (ME.folded) status = '降りました。次のゲームを待っています';
   else if (o) status = o.toCall ? `あなたの番です　コールに必要 <b>${num(o.toCall)}</b>` : 'あなたの番です';
@@ -63,9 +63,9 @@ function phoneMenuHTML(S, me) {
     <div class="mhead"><h3>メニュー</h3><span>部屋 <b>${esc(S.room)}</b></span></div>
     ${themeSwHTML()}
     <div class="pmenu">
-      <button data-do="mute">${muted ? '🔇 音なし（押すと音あり）' : '🔊 音あり（押すと音なし）'}</button>
-      ${S.phase !== 'lobby' ? `<button data-do="sitout">${me.sitOut ? '席に戻る' : '離席する（次のゲームから休む）'}</button>` : ''}
-      <button data-do="leave" class="danger">${PH.leaveArmed ? 'もう一度押すと退出します' : '退出する'}</button>
+      <button data-do="mute">${muted ? ic('volume_off') + ' 音なし（押すと音あり）' : ic('volume_up') + ' 音あり（押すと音なし）'}</button>
+      ${S.phase !== 'lobby' ? `<button data-do="sitout">${me.sitOut ? ic('event_seat') + ' 席に戻る' : ic('chair_alt') + ' 離席する（次のゲームから休む）'}</button>` : ''}
+      <button data-do="leave" class="danger">${ic('logout')} ${PH.leaveArmed ? 'もう一度押すと退出します' : '退出する'}</button>
     </div>
     <button class="cancel" data-close="1">閉じる</button>
   </div></div>`;
@@ -140,7 +140,7 @@ document.addEventListener('click', (e) => {
       hostAfter(); return;
     }
     if (d.do === 'nexthand') { UI.menu = false; N.paused = false; if (!PokerEngine.startHand(G, Date.now())) UI.toast('遊べる人が2人未満です'); hostAfter(); return; }
-    if (d.do === 'end') { if (confirmTwice(b, 'もう一度で終わる')) { G.phase = 'end'; UI.menu = false; store.del('sp-host'); clearTimeout(N.timers.turn); clearTimeout(N.timers.next); hostSync(); } return; }
+    if (d.do === 'end') { if (confirmTwice(b, 'もう一度押すとゲームを終了します')) { G.phase = 'end'; UI.menu = false; store.del('sp-host'); clearTimeout(N.timers.turn); clearTimeout(N.timers.next); hostSync(); } return; }
     return;
   }
   // 子（スマホ）

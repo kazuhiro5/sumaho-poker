@@ -80,5 +80,19 @@
     return 0;
   }
 
-  g.PokerEval = { evaluate, compare, NAMES };
+  // 役に使った5枚：7枚から5枚を選ぶ21通りを比べ、一番強い5枚を返す（場のカードを上げて見せるため）
+  function best5(cards) {
+    if (cards.length <= 5) return cards.slice();
+    let best = null, bestHand = null;
+    const n = cards.length;
+    for (let a = 0; a < n; a++) for (let b = a + 1; b < n; b++) {
+      const five = cards.filter((_, i) => i !== a && i !== b);
+      if (n === 6 && b !== n - 1) continue;
+      const h = evaluate(five);
+      if (!bestHand || compare(h, bestHand) > 0) { best = five; bestHand = h; }
+    }
+    return best;
+  }
+
+  g.PokerEval = { evaluate, compare, best5, NAMES };
 })(typeof window !== 'undefined' ? window : globalThis);

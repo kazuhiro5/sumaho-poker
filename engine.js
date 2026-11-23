@@ -235,7 +235,9 @@
     });
     const net = {}; h.ids.forEach((id) => { const v = (won[id] || 0) - h.contrib[id]; if (v) net[id] = v; });
     h.result = { showdown, won, net, pots: potsOut, rebought,
-      hands: Object.fromEntries(Object.entries(hands).map(([id, v]) => [id, { name: v.name, detail: v.detail }])) };
+      hands: Object.fromEntries(Object.entries(hands).map(([id, v]) => [id, { name: v.name, detail: v.detail }])),
+      // 勝った人の役に使った5枚（画面で上に上げる）
+      best: Object.fromEntries(showdown ? Object.keys(won).map((id) => [id, g.PokerEval.best5(h.hole[id].concat(h.board))]) : []) };
     G.phase = 'between';
   }
 

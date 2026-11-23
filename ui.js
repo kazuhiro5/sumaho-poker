@@ -4,6 +4,8 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 const num = (n) => Number(n || 0).toLocaleString('ja-JP');
 const qs = new URLSearchParams(location.search);
 
+// アイコン：のぞみ音楽教室のアプリと同じ Material Symbols Rounded（丸みのある線のアイコン）
+const ic = (name) => `<span class="ms">${name}</span>`;
 const UI = { err: '', menu: false, handSeen: -1, boardSeen: 0, seen: new Set() };
 
 function card(code, extra = '') {
@@ -51,7 +53,7 @@ function chipCols(amount, perCol, maxCols) {
 function chipLegendHTML() {
   return `<div class="legend">${DENOMS.slice().reverse().map(([v, cls]) => `<span><span class="stack m"><span class="cols"><span class="col" style="--n:3">${
     [0, 1, 2].map((i) => `<i class="chip ${cls}" style="--i:${i}"></i>`).join('')}</span></span></span><b>${num(v)}</b></span>`).join('')}</div>
-    <p class="legendnote">数字はチップの合計です。色は目安で、額は数字で見てください。</p>`;
+`;
 }
 function stackHTML(amount, size = 'm', label = true, prefix = '') {
   amount = Math.max(0, Math.round(amount || 0));
@@ -146,10 +148,10 @@ function topbarHTML(S) {
   const left = S.phase === 'lobby' ? '' : `<div class="corner-l">
     <span class="pill big">BLINDS ${nowBlinds(S).join(' / ')}</span>
     ${blindsChanged(S) ? `<span class="pill warn">→ 次から ${S.blinds.join(' / ')}</span>` : ''}${nextUp}
-    ${S.paused && !UI.menu ? '<button class="pill warn" data-do="resume-game">⏸ 一時停止中　▶ 再開する</button>' : ''}
+    ${S.paused && !UI.menu ? `<button class="pill warn" data-do="resume-game">${ic('pause_circle')} 一時停止中　${ic('play_arrow')} 再開する</button>` : ''}
   </div>`;
   // 部屋番号と音のオン・オフはメニューの中だけ（2026-11-23 オーナー）
-  return `${left}${S.phase !== 'lobby' ? '<div class="corner-r"><button class="icon" data-do="menu">☰</button></div>' : ''}`;
+  return `${left}${S.phase !== 'lobby' ? `<div class="corner-r"><button class="icon" data-do="menu">${ic('menu')}</button></div>` : ''}`;
 }
 // 右下の丸いタイマー：手番は残り10秒から、次のゲームまでは最初から。線が減っていき、中に秒数
 function timerHTML(S) {
@@ -172,7 +174,7 @@ function gameInfoHTML(S) {
     res = ids.map((id) => `<span class="${lr.net[id] > 0 ? 'plus' : 'minus'}">${esc(nameOf(S, id))} ${lr.net[id] > 0 ? '＋' : '−'}${num(Math.abs(lr.net[id]))}</span>`).join('');
     res = `<span class="lbl">${lr.no === S.handNo ? '結果' : '前回'}</span>${res}`;
   }
-  return `<div class="ginfo"><b>第${S.handNo}ゲーム</b>${res}${S.paused ? '<span class="lbl">⏸ 一時停止中（スマホの操作も止まっています）</span>' : ''}</div>`;
+  return `<div class="ginfo"><b>第${S.handNo}ゲーム</b>${res}${S.paused ? `<span class="lbl">${ic('pause_circle')} 一時停止中（スマホの操作も止まっています）</span>` : ''}</div>`;
 }
 
 /* ---------- iPad：ロビー ---------- */
@@ -210,6 +212,12 @@ function lobbyHTML(S) {
 }
 
 /* ---------- iPad：テーブル ---------- */
+// 勝負がついた時、勝った人の役に使ったカードの集まり（上に上げて見せる）
+function bestSet(S) {
+  const r = S.result;
+  if (S.phase !== 'between' || !r || !r.best) return null;
+  return new Set(Object.values(r.best).flat());
+}
 function seatHTML(S, p, i, n) {
   const a = (90 + (360 / n) * i) * Math.PI / 180; // 下から時計回り
   const x = 50 + 41 * Math.cos(a), y = 50 + 40 * Math.sin(a);
@@ -220,7 +228,8 @@ function seatHTML(S, p, i, n) {
   if (S.toAct === p.id && S.phase === 'hand') cls.push('turn');
   if (win && S.phase === 'between') cls.push('win');
   let hole = '';
-  if (p.inHand && !p.folded) hole = p.hole ? p.hole.map((c) => card(c, UI.seen.has(p.id) ? '' : 'flip')).join('') : card('back') + card('back');
+  const bs = bestSet(S), isWin = !!(S.result && S.result.won && S.result.won[p.id]);
+  if (p.inHand && !p.folded) hole = p.hole ? p.hole.map((c) => card(c, (UI.seen.has(p.id) ? '' : 'flip') + (bs && isWin && bs.has(c) ? ' up' : ''))).join('') : card('back') + card('back');
   const made = r && r.hands && r.hands[p.id];
   const tag = p.out ? '脱落' : !p.online ? '切断中' : p.sitOut ? '離席' : p.folded ? 'フォールド' : p.allin ? 'オールイン'
     : made && S.phase === 'between' ? made.name : p.pos;
@@ -237,13 +246,13 @@ function seatHTML(S, p, i, n) {
   return `<div class="${cls.join(' ')}" style="left:${x}%;top:${y}%">
     <div class="hole" ${p.hole ? 'style="--w:48px"' : ''}>${hole}</div>
     <div class="box">${ring}${p.dealer ? '<div class="btn-d">D</div>' : ''}
-      <div class="nm">${esc(p.name)}</div><div class="ch">${stackHTML(p.chips, 'm')}</div><div class="tag">${tag || ''}</div>
+      <div class="nm nametag">${esc(p.name)}</div><div class="ch">${stackHTML(p.chips, 'm')}</div><div class="tag">${tag || ''}</div>
     </div></div>${bet || winTag}`;
 }
 function tableHTML(S) {
   const seats = S.players.filter((p) => !p.left || p.inHand);
-  const b = S.board || [];
-  let center = `<div class="board">${[0, 1, 2, 3, 4].map((i) => card(b[i], b[i] && i >= UI.boardSeen ? 'flip' : '')).join('')}</div>`;
+  const b = S.board || [], bs = bestSet(S);
+  let center = `<div class="board">${[0, 1, 2, 3, 4].map((i) => card(b[i], (b[i] && i >= UI.boardSeen ? 'flip' : '') + (bs && b[i] ? (bs.has(b[i]) ? ' up' : ' dim') : ''))).join('')}</div>`;
   const pots = (S.pots || []).filter((v) => v > 0);
   const anyAllin = S.players.some((p) => p.allin);
   const potText = pots.length > 1 && anyAllin ? `<small>${pots.map((v, i) => (i ? 'サイド' + i : 'メイン') + ' ' + num(v)).join(' ／ ')}</small>` : '';
@@ -253,7 +262,7 @@ function tableHTML(S) {
   if (S.phase === 'between' && r) {
     const ws = Object.keys(r.won);
     const h = r.hands && r.hands[ws[0]];
-    banner = `<div class="banner">${ws.map((id) => esc(nameOf(S, id))).join('・')} の勝ち ＋${num(r.won[ws[0]])}
+    banner = `<div class="banner"><span class="win">WIN</span> ${ws.map((id) => esc(nameOf(S, id))).join('・')} ＋${num(r.won[ws[0]])}
       <small>${h ? `${h.name}${h.detail ? '（' + h.detail + '）' : ''}` : 'ほかの人が全員降りました'}</small></div>`;
   }
   if (S.phase === 'waiting') banner = `<div class="banner">遊べる人が2人未満です<small>参加者が来たら「次のゲーム」を押してください</small></div>`;
@@ -268,25 +277,23 @@ function tableHTML(S) {
 }
 function menuHTML(S) {
   const rows = S.players.filter((p) => !p.left).map((p) => `<div class="mrow"><span>${esc(p.name)}　${num(p.chips)}${p.rebuys ? `（もらい直し${p.rebuys}回）` : ''}</span>
-    <span><button data-add="${p.id}">＋${num(S.settings.stack)}</button><button data-sub="${p.id}" ${p.inHand && S.phase === 'hand' ? 'disabled title="勝負の最中は減らせません"' : ''}>−${num(S.settings.stack)}</button>
-      <button data-sit="${p.id}">${p.sitOut ? '戻す' : '離席'}</button><button data-ban="${p.id}" class="danger">BAN</button></span></div>`).join('');
+    <span><button data-add="${p.id}">${ic('add')}${num(S.settings.stack)}</button><button data-sub="${p.id}" ${p.inHand && S.phase === 'hand' ? 'disabled title="勝負の最中は減らせません"' : ''}>${ic('remove')}${num(S.settings.stack)}</button>
+      <button data-sit="${p.id}">${ic(p.sitOut ? 'event_seat' : 'chair_alt')}${p.sitOut ? '戻す' : '離席'}</button><button data-ban="${p.id}" class="danger">${ic('block')}BAN</button></span></div>`).join('');
   const L = PokerEngine.LEVELS, lv = N.G.level;
   return `<div class="sheet"><div class="in wide">
-    <div class="mhead"><h3>メニュー</h3><span>部屋 <b>${esc(S.room)}</b>　⏸ 一時停止中</span>
-      <button class="icon" data-do="mute">${muted ? '🔇 音なし' : '🔊 音あり'}</button></div>
-    <h3>見た目</h3>${themeSwHTML()}
+    <div class="mhead"><h3>メニュー</h3><span>部屋 <b>${esc(S.room)}</b>　${ic('pause_circle')} 一時停止中</span>
+      <button class="icon" data-do="mute">${muted ? ic('volume_off') + ' 音なし' : ic('volume_up') + ' 音あり'}</button></div>
+    ${S.phase === 'waiting' ? `<button class="wide-btn" data-do="nexthand">${ic('play_arrow')} 次のゲーム</button>` : ''}
+    <button class="wide-btn danger" data-do="end">${ic('stop_circle')} ゲームを終了する</button>
+    <h3>プレイヤー</h3>${rows}
     <h3>BLINDS</h3>
     <div class="blindctl">
-      <button data-do="leveldown" ${lv <= 0 ? 'disabled' : ''}>◀ 下げる</button>
+      <button data-do="leveldown" ${lv <= 0 ? 'disabled' : ''}>${ic('remove')} 下げる</button>
       <div><small>今のゲーム</small><b>${nowBlinds(S).join(' / ')}</b></div>
       <div class="${blindsChanged(S) ? 'chg' : ''}"><small>次のゲームから</small><b>${L[lv].join(' / ')}</b></div>
-      <button data-do="levelup" ${lv >= L.length - 1 ? 'disabled' : ''}>上げる ▶</button>
+      <button data-do="levelup" ${lv >= L.length - 1 ? 'disabled' : ''}>上げる ${ic('add')}</button>
     </div>
-    <div class="mbtns">
-      ${S.phase === 'waiting' ? '<button data-do="nexthand">次のゲーム</button>' : ''}
-      <button data-do="end" class="danger">ここで終わる</button>
-    </div>
-    <h3>プレイヤー</h3>${rows}
+    <h3>見た目</h3>${themeSwHTML()}
     <h3>チップの色</h3>${chipLegendHTML()}
     <div class="mclose"><button class="go" data-do="close-resume">再開して閉じる</button>
       <button class="cancel" data-do="close-stay">止めたまま閉じる</button></div>
