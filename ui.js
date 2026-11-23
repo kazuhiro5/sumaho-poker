@@ -213,8 +213,10 @@ function seatHTML(S, p, i, n) {
   const made = r && r.hands && r.hands[p.id];
   const tag = p.out ? '脱落' : !p.online ? '切断中' : p.sitOut ? '離席' : p.folded ? 'フォールド' : p.allin ? 'オールイン'
     : made && S.phase === 'between' ? made.name : p.pos;
-  const bet = p.bet && S.phase === 'hand' ? `<div class="bet betstack" style="${y < 50 ? 'top' : 'bottom'}:calc(100% + 8px)">${stackHTML(p.bet, 's')}</div>` : '';
-  const winTag = win && S.phase === 'between' ? `<div class="bet betstack" style="${y < 50 ? 'top' : 'bottom'}:calc(100% + 8px)">${stackHTML(win, 's', true, '＋')}</div>` : '';
+  // 賭けたチップは、席とテーブルの中央の間に置く（人数が多い時に隣の席と重ならないように）
+  const bx = x + (50 - x) * 0.42, by = y + (50 - y) * 0.42;
+  const bet = p.bet && S.phase === 'hand' ? `<div class="bet betstack onfelt" style="left:${bx}%;top:${by}%">${stackHTML(p.bet, 's')}</div>` : '';
+  const winTag = win && S.phase === 'between' ? `<div class="bet betstack onfelt" style="left:${bx}%;top:${by}%">${stackHTML(win, 's', true, '＋')}</div>` : '';
   let ring = '';
   if (cls.includes('turn') && S.deadline) {
     const T = S.settings.timeLimit, left = (S.deadline - S.now) / 1000;
@@ -225,14 +227,15 @@ function seatHTML(S, p, i, n) {
     <div class="hole" ${p.hole ? 'style="--w:48px"' : ''}>${hole}</div>
     <div class="box">${ring}${p.dealer ? '<div class="btn-d">D</div>' : ''}
       <div class="nm">${esc(p.name)}</div><div class="ch">${stackHTML(p.chips, 'm')}</div><div class="tag">${tag || ''}</div>
-    </div>${bet || winTag}</div>`;
+    </div></div>${bet || winTag}`;
 }
 function tableHTML(S) {
   const seats = S.players.filter((p) => !p.left || p.inHand);
   const b = S.board || [];
   let center = `<div class="board">${[0, 1, 2, 3, 4].map((i) => card(b[i], b[i] && i >= UI.boardSeen ? 'flip' : '')).join('')}</div>`;
   const pots = (S.pots || []).filter((v) => v > 0);
-  const potText = pots.length > 1 ? `<small>${pots.map((v, i) => (i ? 'サイド' + i : 'メイン') + ' ' + num(v)).join(' ／ ')}</small>` : '';
+  const anyAllin = S.players.some((p) => p.allin);
+  const potText = pots.length > 1 && anyAllin ? `<small>${pots.map((v, i) => (i ? 'サイド' + i : 'メイン') + ' ' + num(v)).join(' ／ ')}</small>` : '';
   center += `<div class="pot potstack">${stackHTML(S.pot, 'l', false)}<span>ポット <b>${num(S.pot)}</b>${potText}</span></div>`;
   let banner = '';
   const r = S.result;

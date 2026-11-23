@@ -147,3 +147,5 @@ body.t-chip,.t-chip button,.t-chip input,.t-chip select{font-family:"M PLUS Roun
 .themesw button.on{background:var(--gold);color:#222}
 .t-real .themesw button{background:rgba(40,33,24,.9);border:1px solid rgba(216,178,106,.35)}
 .t-real .themesw button.on{background:linear-gradient(180deg,#e3c27e,#b48a3e);color:#1d1406}
+/* 賭けたチップ：テーブルの上（席と中央の間）に置く */
+.bet.onfelt{position:absolute;transform:translate(-50%,-50%);z-index:3;bottom:auto}
