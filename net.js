@@ -171,6 +171,9 @@ function connectHost() {
       N.S = m.s; N.ME = m.me; N.status = ''; N.role = 'client';
       N.S.skew = Date.now() - N.S.now; // 親と子の時計のずれ
       if (!wasTurn && N.ME.options) UI.myTurnAlert();
+      // 勝った人のスマホだけ「でれれん」
+      const r = N.S.result;
+      if (N.S.phase === 'between' && r && r.won && r.won[myId] && UI.resultSeen !== N.S.handNo) { UI.resultSeen = N.S.handNo; UI.jingle(0.3); }
       UI.render();
     } else if (m.t === 'err') UI.toast(m.msg);
     else if (m.t === 'full') UI.fail('部屋がいっぱいです（最大' + MAX_PLAYERS + '人）。');

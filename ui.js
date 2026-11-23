@@ -55,6 +55,23 @@ UI.flip = (count = 1, vol = 0.5) => {
   }
 };
 
+// 勝敗がついた時の「でれれん」：ド・ミ・ソと上がり、最後を和音で伸ばす
+UI.jingle = (delay = 0) => {
+  if (muted || !actx) return;
+  const notes = [[[523], 0.09], [[659], 0.09], [[784, 988, 1319], 0.5]];
+  let t = actx.currentTime + delay;
+  notes.forEach(([fs, len]) => {
+    fs.forEach((f) => {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = 'square'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.07, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+      o.connect(g).connect(actx.destination); o.start(t); o.stop(t + len + 0.05);
+    });
+    t += len === 0.5 ? len : 0.11;
+  });
+};
+
 /* ---------- 入口 ---------- */
 function homeHTML() {
   const saved = (() => { try { return JSON.parse(store.get('sp-host') || 'null'); } catch (e) { return null; } })();
@@ -231,7 +248,9 @@ UI.render = () => {
       const nb = (S.board || []).length - UI.boardSeen;
       const newShown = S.players.filter((p) => p.hole && !UI.seen.has(p.id)).length;
       app.innerHTML = tableHTML(S);
-      if (nb > 0 || newShown > 0) UI.flip(Math.min(8, Math.max(0, nb) + newShown * 2));
+      const flips = Math.min(8, Math.max(0, nb) + newShown * 2);
+      if (flips > 0) UI.flip(flips);
+      if (S.phase === 'between' && S.result && UI.resultSeen !== S.handNo) { UI.resultSeen = S.handNo; UI.jingle(flips * 0.13 + 0.15); }
       UI.boardSeen = (S.board || []).length;
       S.players.forEach((p) => { if (p.hole) UI.seen.add(p.id); });
     }
