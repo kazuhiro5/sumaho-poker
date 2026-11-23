@@ -47,10 +47,10 @@ UI.phoneHTML = (S, ME) => {
     <div class="status">${status}${o && S.deadline && !S.paused ? `（残り <b data-until="${S.deadline}" data-sec="1">--</b>秒）` : ''}</div>
     <div class="play">
       <div class="acts">
-        <button class="f ${PH.armed === 'fold' ? 'arm' : ''}" data-act="fold" ${dis}>${PH.armed === 'fold' ? (o && o.canCheck ? 'チェックできます。降りる？' : 'もう一度で降りる') : 'フォールド'}</button>
         <button class="k" data-act="call" ${dis}>${callLabel}</button>
         <button class="r" data-act="raise" ${o && o.canRaise && !S.paused ? '' : 'disabled'}>${raiseLabel}</button>
         <button class="a ${PH.armed === 'allin' ? 'arm' : ''}" data-act="allin" ${dis}>${PH.armed === 'allin' ? 'もう一度で全部' : 'オールイン'}</button>
+        <button class="f ${PH.armed === 'fold' ? 'arm' : ''}" data-act="fold" ${dis}>${PH.armed === 'fold' ? (o && o.canCheck ? 'チェックできます。降りる？' : 'もう一度で降りる') : 'フォールド'}</button>
       </div>
       ${side}
     </div>
@@ -170,7 +170,7 @@ document.addEventListener('input', (e) => {
   $('.sheet .go').textContent = num(PH.amt) + ' に' + (o.cur === 0 ? 'ベット' : 'レイズ');
 });
 // 押している間だけ手札を見せる
-function setPeek(on) { if (PH.peeking === on || !$('#peek')) return; PH.peeking = on; if (on) UI.flip(1, 0.25); UI.render(); }
+function setPeek(on) { if (PH.peeking === on || !$('#peek')) return; PH.peeking = on; UI.render(); } // 手札を見る時は音を出さない（周りに気づかれないため）
 document.addEventListener('pointerdown', (e) => { if (e.target.closest('#peek')) setPeek(true); });
 ['pointerup', 'pointercancel'].forEach((t) => document.addEventListener(t, () => setPeek(false)));
 document.addEventListener('contextmenu', (e) => { if (e.target.closest('#peek')) e.preventDefault(); });
