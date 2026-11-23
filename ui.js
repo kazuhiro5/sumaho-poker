@@ -1,0 +1,223 @@
+/* 画面：共通の部品・入口・iPad（テーブル） */
+const $ = (q) => document.querySelector(q);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const num = (n) => Number(n || 0).toLocaleString('ja-JP');
+const qs = new URLSearchParams(location.search);
+
+const UI = { err: '', menu: false };
+
+function card(code, extra = '') {
+  if (!code) return `<span class="c empty ${extra}"></span>`;
+  if (code === 'back') return `<span class="c back ${extra}"></span>`;
+  const s = code.slice(-1), rk = code.slice(0, -1);
+  return `<span class="c ${s === '♥' || s === '♦' ? 'r' : ''} ${extra}"><span class="rk">${rk}</span><span class="st">${s}</span></span>`;
+}
+const boardHTML = (b) => [0, 1, 2, 3, 4].map((i) => card((b || [])[i])).join('');
+const nameOf = (S, id) => ((S.players || []).find((p) => p.id === id) || {}).name || '？';
+function mmss(ms) { ms = Math.max(0, ms); const s = Math.ceil(ms / 1000); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }
+
+UI.fail = (msg) => { N.status = 'error'; UI.err = msg; UI.render(); };
+UI.banner = (msg) => { const b = $('#banner'); b.textContent = msg; b.hidden = !msg; };
+UI.toast = (msg) => {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), 1600);
+};
+
+/* ---------- 音（その場で作る短い音） ---------- */
+let actx = null;
+let muted = store.get('sp-mute') === '1';
+UI.unlockAudio = () => {
+  try { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); } catch (e) { /* noop */ }
+};
+UI.beep = (freqs, dur = 0.12, vol = 0.15) => {
+  if (muted || !actx) return;
+  freqs.forEach((f, i) => {
+    const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + i * dur;
+    o.type = 'triangle'; o.frequency.value = f;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur * 1.6);
+    o.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur * 1.8);
+  });
+};
+
+/* ---------- 入口 ---------- */
+function homeHTML() {
+  const saved = (() => { try { return JSON.parse(store.get('sp-host') || 'null'); } catch (e) { return null; } })();
+  const resume = saved && Date.now() - saved.at < 12 * 3600 * 1000
+    ? `<button class="sub" data-do="resume">前のゲームを続ける（部屋 ${esc(saved.room)}）</button>` : '';
+  const room = qs.get('room') || '';
+  return `<div class="home">
+    <h1>スマホ版ポーカー</h1>
+    <p>iPadがテーブル、みんなのスマホが手札。<br>同じWi-Fiにつないで遊んでください。</p>
+    <div class="pick">
+      <div class="panel">
+        <h2>スマホで参加</h2>
+        <label>部屋番号<input id="room" inputmode="numeric" maxlength="4" value="${esc(room)}" placeholder="4桁"></label>
+        <label>名前<input id="name" maxlength="8" value="${esc(store.get('sp-name') || '')}" placeholder="8文字まで"></label>
+        <button class="go" data-do="join">参加する</button>
+      </div>
+      ${room ? '' : `<div class="panel">
+        <h2>iPadでテーブルを作る</h2>
+        <p>この端末がテーブルになります。iPadは遊ぶ人には入りません。</p>
+        <button class="go host" data-do="create">部屋を作る</button>${resume}
+      </div>`}
+    </div>
+  </div>`;
+}
+
+/* ---------- iPad：上の帯 ---------- */
+function topbarHTML(S) {
+  const nextUp = S.settings.blindUpMin && S.phase !== 'lobby'
+    ? `<span class="pill">次の上昇まで <b data-until="${S.levelStartedAt + S.settings.blindUpMin * 60000}">--:--</b></span>` : '';
+  return `<div class="topbar">
+    <span class="room">部屋 ${esc(S.room)}</span>
+    ${S.phase !== 'lobby' ? `<span class="pill">ブラインド ${S.blinds[0]} / ${S.blinds[1]}</span>${nextUp}` : ''}
+    ${S.paused ? '<span class="pill warn">一時停止中</span>' : ''}
+    <span class="sp"></span>
+    <button class="icon" data-do="mute">${muted ? '🔇' : '🔊'}</button>
+    ${S.phase !== 'lobby' ? '<button class="icon" data-do="menu">☰</button>' : ''}
+  </div>`;
+}
+
+/* ---------- iPad：ロビー ---------- */
+const OPT = {
+  stack: [[500, '500'], [1000, '1,000'], [2000, '2,000'], [5000, '5,000']],
+  level: [[0, '5 / 10'], [1, '10 / 20'], [4, '25 / 50'], [6, '50 / 100']],
+  blindUpMin: [[0, '上げない'], [10, '10分ごと'], [15, '15分ごと'], [20, '20分ごと']],
+  rebuy: [[1, 'もう一度もらえる'], [0, '脱落']],
+  timeLimit: [[0, 'なし'], [30, '30秒'], [60, '60秒']],
+};
+const OPT_LABEL = { stack: '最初のチップ', level: 'ブラインド', blindUpMin: 'ブラインドを上げる', rebuy: 'チップがなくなったら', timeLimit: '1手の持ち時間' };
+function lobbyHTML(S) {
+  const ps = S.players;
+  const slots = [];
+  for (let i = 0; i < MAX_PLAYERS; i++) {
+    const p = ps[i];
+    slots.push(p ? `<div class="${p.online ? '' : 'off'}">${i + 1}. ${esc(p.name)}${p.online ? '' : '（切断）'}<button class="x" data-kick="${p.id}">×</button></div>` : `<div class="wait">空き</div>`);
+  }
+  const set = N.G.settings;
+  const sel = (k) => `<label>${OPT_LABEL[k]}<select data-set="${k}">${OPT[k].map(([v, l]) =>
+    `<option value="${v}" ${String(+set[k]) === String(v) ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
+  return `<div class="table-view">${topbarHTML(S)}
+    <div class="lobby">
+      <div class="joinbox">
+        <div class="qr" id="qr"></div>
+        <div class="num">${esc(S.room)}</div>
+        <p>スマホでQRを読むか、部屋番号を入れて参加</p>
+      </div>
+      <div>
+        <div class="plist">${slots.join('')}</div>
+        <div class="settings">${Object.keys(OPT).map(sel).join('')}</div>
+        <button class="start" data-do="start" ${ps.length < 2 ? 'disabled' : ''}>${ps.length < 2 ? '2人以上で始められます' : `スタート（${ps.length}人）`}</button>
+      </div>
+    </div></div>`;
+}
+
+/* ---------- iPad：テーブル ---------- */
+function seatHTML(S, p, i, n) {
+  const a = (90 + (360 / n) * i) * Math.PI / 180; // 下から時計回り
+  const x = 50 + 41 * Math.cos(a), y = 50 + 40 * Math.sin(a);
+  const r = S.result;
+  const win = r && r.won && r.won[p.id];
+  const cls = ['seat'];
+  if (p.folded || p.out || (!p.inHand && S.phase === 'hand')) cls.push('folded');
+  if (S.toAct === p.id && S.phase === 'hand') cls.push('turn');
+  if (win && S.phase === 'between') cls.push('win');
+  let hole = '';
+  if (p.inHand && !p.folded) hole = p.hole ? p.hole.map((c) => card(c, 'flip')).join('') : card('back') + card('back');
+  const made = r && r.hands && r.hands[p.id];
+  const tag = p.out ? '脱落' : !p.online ? '切断中' : p.sitOut ? '離席' : p.folded ? 'フォールド' : p.allin ? 'オールイン'
+    : made && S.phase === 'between' ? made.name : p.pos;
+  const bet = p.bet && S.phase === 'hand' ? `<div class="bet" style="${y < 50 ? 'top' : 'bottom'}:calc(100% + 8px)">${num(p.bet)}</div>` : '';
+  const winTag = win && S.phase === 'between' ? `<div class="bet" style="${y < 50 ? 'top' : 'bottom'}:calc(100% + 8px)">＋${num(win)}</div>` : '';
+  let ring = '';
+  if (cls.includes('turn') && S.deadline) {
+    const T = S.settings.timeLimit, left = (S.deadline - S.now) / 1000;
+    ring = `<svg class="ring" viewBox="0 0 100 100" preserveAspectRatio="none"><rect x="2" y="2" width="96" height="96" rx="14" pathLength="100"
+      style="--len:100;animation-duration:${T}s;animation-delay:${-(T - left)}s;animation-iteration-count:1;animation-fill-mode:forwards"/></svg>`;
+  }
+  return `<div class="${cls.join(' ')}" style="left:${x}%;top:${y}%">
+    <div class="hole" ${p.hole ? 'style="--w:48px"' : ''}>${hole}</div>
+    <div class="box">${ring}${p.dealer ? '<div class="btn-d">D</div>' : ''}
+      <div class="nm">${esc(p.name)}</div><div class="ch">${num(p.chips)}</div><div class="tag">${tag || ''}</div>
+    </div>${bet || winTag}</div>`;
+}
+function tableHTML(S) {
+  const seats = S.players.filter((p) => !p.left || p.inHand);
+  let center = `<div class="board">${boardHTML(S.board)}</div>`;
+  const pots = (S.pots || []).filter((v) => v > 0);
+  const potText = pots.length > 1 ? `<small>${pots.map((v, i) => (i ? 'サイド' + i : 'メイン') + ' ' + num(v)).join(' ／ ')}</small>` : '';
+  center += `<div class="pot">ポット ${num(S.pot)}${potText}</div>`;
+  let banner = '';
+  const r = S.result;
+  if (S.phase === 'between' && r) {
+    const ws = Object.keys(r.won);
+    const h = r.hands && r.hands[ws[0]];
+    banner = `<div class="banner">${ws.map((id) => esc(nameOf(S, id))).join('・')} の勝ち ＋${num(r.won[ws[0]])}
+      <small>${h ? `${h.name}${h.detail ? '（' + h.detail + '）' : ''}` : 'ほかの人が全員降りました'}</small></div>`;
+  }
+  if (S.phase === 'waiting') banner = `<div class="banner">遊べる人が2人未満です<small>参加者が来たら「次のゲーム」を押してください</small></div>`;
+  let foot = (S.log || []).slice(0, 3).reverse().map(esc).join(' ／ ');
+  if (S.phase === 'hand' && S.toAct) foot += ` ／ <b>${esc(nameOf(S, S.toAct))} の番</b>` + (S.deadline ? `（残り <b data-until="${S.deadline}" data-sec="1">--</b>秒）` : '');
+  if (S.phase === 'between') foot = `次のゲームまで <b data-until="${S.nextAt}" data-sec="1">--</b>秒`;
+  if (S.paused) foot = '一時停止中（☰ から再開）';
+  return `<div class="table-view">${topbarHTML(S)}
+    <div class="stage"><div class="felt"></div>
+      ${seats.map((p, i) => seatHTML(S, p, i, seats.length)).join('')}
+      ${banner}<div class="center">${center}</div>
+    </div>
+    <div class="log">${foot}</div>
+    ${UI.menu ? menuHTML(S) : ''}
+  </div>`;
+}
+function menuHTML(S) {
+  const rows = S.players.filter((p) => !p.left).map((p) => `<div class="mrow"><span>${esc(p.name)}　${num(p.chips)}${p.rebuys ? `（もらい直し${p.rebuys}回）` : ''}</span>
+    <span><button data-add="${p.id}">＋${num(S.settings.stack)}</button><button data-kick="${p.id}">外す</button></span></div>`).join('');
+  return `<div class="sheet" data-close="1"><div class="in wide">
+    <h3>メニュー</h3>
+    <div class="mbtns">
+      <button data-do="pause">${S.paused ? '▶ 再開する' : '⏸ 一時停止'}</button>
+      <button data-do="levelup">ブラインドを1つ上げる</button>
+      ${S.phase === 'waiting' ? '<button data-do="nexthand">次のゲーム</button>' : ''}
+      <button data-do="end" class="danger">ここで終わる</button>
+    </div>
+    <h3>プレイヤー</h3>${rows}
+    <button class="cancel" data-close="1">閉じる</button>
+  </div></div>`;
+}
+function resultHTML(S, forHost) {
+  const rows = S.players.slice().map((p) => ({ ...p, net: p.chips - S.settings.stack * (1 + (p.rebuys || 0)) }))
+    .sort((a, b) => b.net - a.net);
+  return `<div class="${forHost ? 'table-view' : 'hand-view'}"><div class="final">
+    <h2>最終結果</h2>
+    <table>${rows.map((p, i) => `<tr><td>${i + 1}位</td><td>${esc(p.name)}</td><td>${num(p.chips)}</td>
+      <td class="${p.net >= 0 ? 'plus' : 'minus'}">${p.net >= 0 ? '+' : ''}${num(p.net)}</td></tr>`).join('')}</table>
+    <p>${S.handNo}ゲーム遊びました。増減は、もらい直したチップを差し引いた数字です。</p>
+    <button class="go" data-do="home">最初の画面へ</button>
+  </div></div>`;
+}
+
+/* ---------- 描画 ---------- */
+UI.render = () => {
+  const app = $('#app');
+  if (N.status === 'error') { app.innerHTML = `<div class="home"><h1>うまくいきませんでした</h1><p>${esc(UI.err)}</p><button class="go" data-do="home">最初の画面へ</button></div>`; return; }
+  if (N.status === 'connecting') { app.innerHTML = `<div class="home"><h1>つないでいます…</h1></div>`; return; }
+  const S = N.S;
+  if (!N.role || !S) { app.innerHTML = homeHTML(); return; }
+  if (N.role === 'host') {
+    if (S.phase === 'end') app.innerHTML = resultHTML(S, true);
+    else if (S.phase === 'lobby') {
+      app.innerHTML = lobbyHTML(S);
+      if (typeof QRCode !== 'undefined') new QRCode($('#qr'), { text: location.origin + location.pathname + '?room=' + S.room, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
+    } else app.innerHTML = tableHTML(S);
+  } else app.innerHTML = S.phase === 'end' ? resultHTML(S, false) : UI.phoneHTML(S, N.ME);
+  UI.tick();
+};
+// 残り時間の数字だけを1秒ごとに書き換える（画面全体は描き直さない）
+UI.tick = () => {
+  const skew = N.role === 'client' && N.S ? N.S.skew || 0 : 0;
+  document.querySelectorAll('[data-until]').forEach((el) => {
+    const ms = +el.dataset.until - (Date.now() - skew);
+    el.textContent = el.dataset.sec ? Math.max(0, Math.ceil(ms / 1000)) : mmss(ms);
+  });
+};
+setInterval(UI.tick, 500);
