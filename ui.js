@@ -98,16 +98,22 @@ function homeHTML() {
 }
 
 /* ---------- iPad：上の帯 ---------- */
+// 今のゲームのブラインドと、次のゲームからのブラインド
+const nowBlinds = (S) => S.handBlinds || S.blinds;
+const blindsChanged = (S) => S.handBlinds && S.phase !== 'lobby' && S.handBlinds.join() !== S.blinds.join();
+// 左上：ブラインド ／ 右上：部屋番号・☰・🔊（上の帯をやめてテーブルを広くした）
 function topbarHTML(S) {
-  const nextUp = S.settings.blindUpMin && S.phase !== 'lobby'
+  const nextUp = S.settings.blindUpMin && S.phase !== 'lobby' && !S.paused
     ? `<span class="pill">次の上昇まで <b data-until="${S.levelStartedAt + S.settings.blindUpMin * 60000}">--:--</b></span>` : '';
-  return `<div class="topbar">
-    <span class="room">部屋 ${esc(S.room)}</span>
-    ${S.phase !== 'lobby' ? `<span class="pill">ブラインド ${S.blinds[0]} / ${S.blinds[1]}</span>${nextUp}` : ''}
-    ${S.paused ? '<span class="pill warn">一時停止中</span>' : ''}
-    <span class="sp"></span>
-    <button class="icon" data-do="mute">${muted ? '🔇' : '🔊'}</button>
+  const left = S.phase === 'lobby' ? '' : `<div class="corner-l">
+    <span class="pill big">ブラインド ${nowBlinds(S).join(' / ')}</span>
+    ${blindsChanged(S) ? `<span class="pill warn">→ 次から ${S.blinds.join(' / ')}</span>` : ''}${nextUp}
+    ${S.paused && !UI.menu ? '<button class="pill warn" data-do="resume-game">⏸ 一時停止中　▶ 再開する</button>' : ''}
+  </div>`;
+  return `${left}<div class="corner-r">
+    <span class="roomno">${esc(S.room)}</span>
     ${S.phase !== 'lobby' ? '<button class="icon" data-do="menu">☰</button>' : ''}
+    <button class="icon" data-do="mute">${muted ? '🔇' : '🔊'}</button>
   </div>`;
 }
 
@@ -166,7 +172,7 @@ function seatHTML(S, p, i, n) {
   if (cls.includes('turn') && S.deadline) {
     const T = S.settings.timeLimit, left = (S.deadline - S.now) / 1000;
     ring = `<svg class="ring" viewBox="0 0 100 100" preserveAspectRatio="none"><rect x="2" y="2" width="96" height="96" rx="14" pathLength="100"
-      style="--len:100;animation-duration:${T}s;animation-delay:${-(T - left)}s;animation-iteration-count:1;animation-fill-mode:forwards"/></svg>`;
+      style="--len:100;animation-duration:${T}s;animation-delay:${-(T - left)}s;animation-iteration-count:1;animation-fill-mode:forwards;${S.paused ? 'animation-play-state:paused' : ''}"/></svg>`;
   }
   return `<div class="${cls.join(' ')}" style="left:${x}%;top:${y}%">
     <div class="hole" ${p.hole ? 'style="--w:48px"' : ''}>${hole}</div>
@@ -191,9 +197,9 @@ function tableHTML(S) {
   }
   if (S.phase === 'waiting') banner = `<div class="banner">遊べる人が2人未満です<small>参加者が来たら「次のゲーム」を押してください</small></div>`;
   let foot = (S.log || []).slice(0, 3).reverse().map(esc).join(' ／ ');
-  if (S.phase === 'hand' && S.toAct) foot += ` ／ <b>${esc(nameOf(S, S.toAct))} の番</b>` + (S.deadline ? `（残り <b data-until="${S.deadline}" data-sec="1">--</b>秒）` : '');
+  if (S.phase === 'hand' && S.toAct) foot += ` ／ <b>${esc(nameOf(S, S.toAct))} の番</b>` + (S.deadline && !S.paused ?`（残り <b data-until="${S.deadline}" data-sec="1">--</b>秒）` : '');
   if (S.phase === 'between') foot = `次のゲームまで <b data-until="${S.nextAt}" data-sec="1">--</b>秒`;
-  if (S.paused) foot = '一時停止中（☰ から再開）';
+  if (S.paused) foot = '一時停止中（スマホの操作も止まっています）';
   return `<div class="table-view">${topbarHTML(S)}
     <div class="stage"><div class="felt"></div>
       ${seats.map((p, i) => seatHTML(S, p, i, seats.length)).join('')}
@@ -206,16 +212,23 @@ function tableHTML(S) {
 function menuHTML(S) {
   const rows = S.players.filter((p) => !p.left).map((p) => `<div class="mrow"><span>${esc(p.name)}　${num(p.chips)}${p.rebuys ? `（もらい直し${p.rebuys}回）` : ''}</span>
     <span><button data-add="${p.id}">＋${num(S.settings.stack)}</button><button data-kick="${p.id}">外す</button></span></div>`).join('');
-  return `<div class="sheet" data-close="1"><div class="in wide">
-    <h3>メニュー</h3>
+  const L = PokerEngine.LEVELS, lv = N.G.level;
+  return `<div class="sheet"><div class="in wide">
+    <div class="mhead"><h3>メニュー</h3><span>部屋 <b>${esc(S.room)}</b>　⏸ 一時停止中</span></div>
+    <h3>ブラインド</h3>
+    <div class="blindctl">
+      <button data-do="leveldown" ${lv <= 0 ? 'disabled' : ''}>◀ 下げる</button>
+      <div><small>今のゲーム</small><b>${nowBlinds(S).join(' / ')}</b></div>
+      <div class="${blindsChanged(S) ? 'chg' : ''}"><small>次のゲームから</small><b>${L[lv].join(' / ')}</b></div>
+      <button data-do="levelup" ${lv >= L.length - 1 ? 'disabled' : ''}>上げる ▶</button>
+    </div>
     <div class="mbtns">
-      <button data-do="pause">${S.paused ? '▶ 再開する' : '⏸ 一時停止'}</button>
-      <button data-do="levelup">ブラインドを1つ上げる</button>
       ${S.phase === 'waiting' ? '<button data-do="nexthand">次のゲーム</button>' : ''}
       <button data-do="end" class="danger">ここで終わる</button>
     </div>
     <h3>プレイヤー</h3>${rows}
-    <button class="cancel" data-close="1">閉じる</button>
+    <div class="mclose"><button class="go" data-do="close-resume">再開して閉じる</button>
+      <button class="cancel" data-do="close-stay">止めたまま閉じる</button></div>
   </div></div>`;
 }
 function resultHTML(S, forHost) {

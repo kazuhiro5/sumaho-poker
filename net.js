@@ -65,6 +65,7 @@ function hostHandle(pid, m, c) {
     PokerEngine.addPlayer(G, pid, name);
   } else if (!p) return;
   else if (m.t === 'act') {
+    if (N.paused) { if (c) c.send({ t: 'err', msg: '一時停止中です' }); return; }
     const err = PokerEngine.act(G, pid, m.type, m.amount);
     if (err && c) c.send({ t: 'err', msg: err });
   } else if (m.t === 'sitout') {
@@ -93,6 +94,19 @@ function hostKick(pid) {
   const c = N.conns.get(pid);
   if (c) { try { c.send({ t: 'kicked' }); setTimeout(() => c.close(), 300); } catch (e) { /* noop */ } }
   hostRemove(pid); hostAfter();
+}
+
+// 一時停止：手番の残り時間を覚えておき、再開した時にその分だけ戻す
+function setPaused(on) {
+  if (on && !N.paused) {
+    N.pauseLeft = N.deadline ? Math.max(0, N.deadline - Date.now()) : 0;
+    N.paused = true;
+  } else if (!on && N.paused) {
+    N.paused = false;
+    if (N.pauseLeft) N.deadline = Date.now() + N.pauseLeft;
+    N.pauseLeft = 0;
+  }
+  hostAfter();
 }
 
 // 状態が変わった後：手番の時間・次の勝負・送信
@@ -170,10 +184,7 @@ function connectHost() {
       const wasTurn = N.ME && N.ME.options;
       N.S = m.s; N.ME = m.me; N.status = ''; N.role = 'client';
       N.S.skew = Date.now() - N.S.now; // 親と子の時計のずれ
-      if (!wasTurn && N.ME.options) UI.myTurnAlert();
-      // 勝った人のスマホだけ「でれれん」
-      const r = N.S.result;
-      if (N.S.phase === 'between' && r && r.won && r.won[myId] && UI.resultSeen !== N.S.handNo) { UI.resultSeen = N.S.handNo; UI.jingle(0.3); }
+      if (!wasTurn && N.ME.options && !N.S.paused) UI.myTurnAlert();
       UI.render();
     } else if (m.t === 'err') UI.toast(m.msg);
     else if (m.t === 'full') UI.fail('部屋がいっぱいです（最大' + MAX_PLAYERS + '人）。');

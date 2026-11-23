@@ -59,7 +59,7 @@
     G.dealer = ids[0];
     const [sbAmt, bbAmt] = blinds(G);
     const h = { ids, deck: newDeck(), board: [], hole: {}, bet: {}, contrib: {}, folded: {}, allin: {}, acted: {}, seen: {},
-      street: 0, cur: bbAmt, minRaise: bbAmt, raiseCount: 0, bbAmt, toAct: null, result: null, shown: {} };
+      street: 0, cur: bbAmt, minRaise: bbAmt, raiseCount: 0, bbAmt, sbAmt, toAct: null, result: null, shown: {} };
     ids.forEach((id) => { h.bet[id] = 0; h.contrib[id] = 0; });
     G.hand = h; G.phase = 'hand'; G.handNo++;
     h.sb = ids.length === 2 ? ids[0] : ids[1];
@@ -250,7 +250,7 @@
     });
     const v = { phase: G.phase, handNo: G.handNo, blinds: [sb, bb], level: G.level, settings: G.settings,
       levelStartedAt: G.levelStartedAt, startedAt: G.startedAt || 0, players, log: G.log.slice(0, 6) };
-    if (h) Object.assign(v, { board: h.board, street: h.street, toAct: h.toAct, pot: potTotal(h),
+    if (h) Object.assign(v, { handBlinds: [h.sbAmt, h.bbAmt], board: h.board, street: h.street, toAct: h.toAct, pot: potTotal(h),
       pots: pots(h).map((p) => p.amount), result: h.result });
     return v;
   }

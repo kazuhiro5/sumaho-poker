@@ -165,3 +165,22 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .final .plus{color:var(--gold);font-weight:800}.final .minus{color:#e88}
 .final p{color:var(--muted);font-size:14px;text-align:center}
 .table-view{padding-bottom:12px}
+/* 上の帯をやめ、四隅に置く（2026-11-23） */
+.table-view{position:relative}
+.corner-l{position:absolute;top:10px;left:14px;display:flex;flex-direction:column;align-items:flex-start;gap:6px;z-index:4}
+.corner-r{position:absolute;top:10px;right:14px;display:flex;flex-direction:column;align-items:center;gap:8px;z-index:4}
+.roomno{font-weight:800;font-size:22px;letter-spacing:.08em}
+.corner-r .icon{background:rgba(255,255,255,.1);width:46px;height:46px;border-radius:50%;font-size:20px}
+.pill{background:rgba(255,255,255,.08);padding:6px 12px;border-radius:999px;font-size:15px}
+.pill.big{font-size:19px;font-weight:700}
+button.pill{font-size:16px}
+.mhead{display:flex;justify-content:space-between;align-items:baseline;color:var(--muted)}
+.mhead b{color:var(--ink);font-size:20px}
+.blindctl{display:grid;grid-template-columns:auto 1fr 1fr auto;gap:8px;align-items:center;margin-bottom:16px}
+.blindctl button{background:var(--btn);padding:14px 12px;border-radius:10px;font-weight:700}
+.blindctl button:disabled{opacity:.35}
+.blindctl div{background:rgba(255,255,255,.05);border-radius:10px;padding:8px;text-align:center}
+.blindctl small{display:block;color:var(--muted);font-size:12px}
+.blindctl b{font-size:22px}
+.blindctl .chg{outline:2px solid var(--gold)} .blindctl .chg b{color:var(--gold)}
+.mclose{margin-top:14px}

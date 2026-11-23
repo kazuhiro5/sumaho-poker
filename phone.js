@@ -29,11 +29,12 @@ UI.phoneHTML = (S, ME) => {
   }
   const faces = PH.peeking ? ME.hole.map((c) => card(c)).join('') : card('back') + card('back');
   let status;
-  if (ME.folded) status = '降りました。次のゲームを待っています';
+  if (S.paused) status = '⏸ 一時停止中です（iPadで再開するまで待ってください）';
+  else if (ME.folded) status = '降りました。次のゲームを待っています';
   else if (o) status = o.toCall ? `あなたの番です　コールに必要 <b>${num(o.toCall)}</b>` : 'あなたの番です';
   else if (S.toAct) status = `${esc(nameOf(S, S.toAct))} の番です`;
   else status = '';
-  const dis = o ? '' : 'disabled';
+  const dis = o && !S.paused ? '' : 'disabled';
   const callLabel = !o ? 'コール' : o.canCheck ? 'チェック' : `コール ${num(o.toCall)}`;
   const raiseLabel = o && o.cur === 0 ? 'ベット' : 'レイズ';
   return `<div class="hand-view ${o ? 'myturn' : ''}">${head}
@@ -43,11 +44,11 @@ UI.phoneHTML = (S, ME) => {
       <div class="made">${PH.peeking && ME.made ? ME.made.name : ''}</div>
       <div class="hint">${PH.peeking ? '指を離すと隠れます' : '押している間だけ手札が見えます'}</div>
     </div>
-    <div class="status">${status}${o && S.deadline ? `（残り <b data-until="${S.deadline}" data-sec="1">--</b>秒）` : ''}</div>
+    <div class="status">${status}${o && S.deadline && !S.paused ? `（残り <b data-until="${S.deadline}" data-sec="1">--</b>秒）` : ''}</div>
     <div class="acts">
       <button class="f ${PH.armed === 'fold' ? 'arm' : ''}" data-act="fold" ${dis}>${PH.armed === 'fold' ? (o && o.canCheck ? 'チェックできます。降りる？' : 'もう一度で降りる') : 'フォールド'}</button>
       <button class="k" data-act="call" ${dis}>${callLabel}</button>
-      <button class="r" data-act="raise" ${o && o.canRaise ? '' : 'disabled'}>${raiseLabel}</button>
+      <button class="r" data-act="raise" ${o && o.canRaise && !S.paused ? '' : 'disabled'}>${raiseLabel}</button>
       <button class="a ${PH.armed === 'allin' ? 'arm' : ''}" data-act="allin" ${dis}>${PH.armed === 'allin' ? 'もう一度で全部' : 'オールイン'}</button>
     </div>
     ${foot}
@@ -99,10 +100,17 @@ document.addEventListener('click', (e) => {
     if (d.kick) { if (confirmTwice(b, '外す？')) { hostKick(d.kick); } return; }
     if (d.add) { const p = G.players.find((x) => x.id === d.add); if (p) { p.chips += G.settings.stack; p.rebuys++; p.out = false; } hostAfter(); return; }
     if (d.do === 'start') { PokerEngine.startGame(G, Date.now()); UI.beep([523, 659, 784]); hostAfter(); return; }
-    if (d.do === 'menu') { UI.menu = true; UI.render(); return; }
-    if (d.do === 'pause') { N.paused = !N.paused; UI.menu = false; hostAfter(); return; }
-    if (d.do === 'levelup') { if (G.level < PokerEngine.LEVELS.length - 1) G.level++; G.levelStartedAt = Date.now(); UI.toast('次のゲームから ' + PokerEngine.LEVELS[G.level].join('/')); hostAfter(); return; }
-    if (d.do === 'nexthand') { UI.menu = false; if (!PokerEngine.startHand(G, Date.now())) UI.toast('遊べる人が2人未満です'); hostAfter(); return; }
+    // ☰を開いたら一時停止（手番の時間・次のゲームまでの時間・スマホの操作が止まる）
+    if (d.do === 'menu') { UI.menu = true; setPaused(true); return; }
+    if (d.do === 'close-resume' || d.do === 'resume-game') { UI.menu = false; setPaused(false); return; }
+    if (d.do === 'close-stay') { UI.menu = false; UI.render(); return; }
+    if (d.do === 'levelup' || d.do === 'leveldown') {
+      const max = PokerEngine.LEVELS.length - 1;
+      G.level = Math.max(0, Math.min(max, G.level + (d.do === 'levelup' ? 1 : -1)));
+      G.levelStartedAt = Date.now(); // 自動で上げる時間も、ここから数え直す
+      hostAfter(); return;
+    }
+    if (d.do === 'nexthand') { UI.menu = false; N.paused = false; if (!PokerEngine.startHand(G, Date.now())) UI.toast('遊べる人が2人未満です'); hostAfter(); return; }
     if (d.do === 'end') { if (confirmTwice(b, 'もう一度で終わる')) { G.phase = 'end'; UI.menu = false; store.del('sp-host'); clearTimeout(N.timers.turn); clearTimeout(N.timers.next); hostSync(); } return; }
     return;
   }
