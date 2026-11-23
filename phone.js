@@ -5,10 +5,10 @@ UI.phoneHTML = (S, ME) => {
   const me = S.players.find((p) => p.id === myId) || { name: N.name, chips: 0 };
   const o = ME && ME.options;
   // 左上＝ブラインド、右上＝名前と☰（退出・離席・部屋番号・音はメニューの中）
-  const head = `<div class="me"><span class="bl">${S.phase === 'lobby' ? '待機中' : `ブラインド ${(S.handBlinds || S.blinds).join(' / ')}`}</span>
+  const head = `<div class="me"><span class="bl">${S.phase === 'lobby' ? '待機中' : `BLINDS ${(S.handBlinds || S.blinds).join(' / ')}`}</span>
     <span class="who"><span class="nm">${esc(me.name)}</span><button class="mbtn" data-do="pmenu">☰</button></span></div>`;
   const tail = PH.menu ? phoneMenuHTML(S, me) : '';
-  const side = `<div class="side chipside"><div><small>ポット</small>${stackHTML(S.pot || 0, 'l')}</div><div class="mine"><small>手元のチップ</small>${stackHTML(me.chips, 'l')}</div></div>`;
+  const side = `<div class="side chipside"><div><small>POT</small>${stackHTML(S.pot || 0, 'l')}</div><div class="mine"><small>手元のチップ</small>${stackHTML(me.chips, 'l')}</div></div>`;
 
   if (S.phase === 'lobby') {
     const i = S.players.findIndex((p) => p.id === myId);
@@ -75,8 +75,8 @@ function raiseSheetHTML(o) {
     <div class="amt" id="amt">${num(PH.amt)}</div>
     <div class="sub">いくらに${o.cur === 0 ? 'ベット' : 'レイズ'}しますか（最小 ${num(o.minTo)}）</div>
     <div class="presets">
-      <button data-amt="${o.minTo}">最小</button><button data-amt="${o.halfTo}">ポットの半分</button>
-      <button data-amt="${o.potTo}">ポット</button><button data-amt="${o.maxTo}">全部</button>
+      <button data-amt="${o.minTo}">最小</button><button data-amt="${o.halfTo}">1/2 POT</button>
+      <button data-amt="${o.potTo}">POT</button><button data-amt="${o.maxTo}">全部</button>
     </div>
     <div class="pm"><button data-step="-1">−</button>
       <input type="range" id="slider" min="${o.minTo}" max="${o.maxTo}" step="1" value="${PH.amt}">
@@ -115,6 +115,18 @@ document.addEventListener('click', (e) => {
   if (N.role === 'host') {
     const G = N.G;
     if (d.kick) { if (confirmTwice(b, '外す？')) { hostKick(d.kick); } return; }
+    if (d.sub) {
+      const p = G.players.find((x) => x.id === d.sub);
+      if (p && G.phase === 'hand' && G.hand && G.hand.ids.includes(p.id)) { UI.toast('勝負の最中は減らせません'); return; }
+      if (p) { p.chips = Math.max(0, p.chips - G.settings.stack); if (p.rebuys > 0) p.rebuys--; if (p.chips === 0 && !G.settings.rebuy) p.out = true; }
+      hostAfter(); return;
+    }
+    if (d.sit) {
+      const p = G.players.find((x) => x.id === d.sit);
+      if (p) { p.sitOut = !p.sitOut; if (p.sitOut && G.hand && G.phase === 'hand' && G.hand.toAct === p.id) PokerEngine.autoAct(G); }
+      hostAfter(); return;
+    }
+    if (d.ban) { if (confirmTwice(b, 'もう一度でBAN')) hostBan(d.ban); return; }
     if (d.add) { const p = G.players.find((x) => x.id === d.add); if (p) { p.chips += G.settings.stack; p.rebuys++; p.out = false; } hostAfter(); return; }
     if (d.do === 'start') { PokerEngine.startGame(G, Date.now()); UI.beep([523, 659, 784]); hostAfter(); return; }
     // ☰を開いたら一時停止（手番の時間・次のゲームまでの時間・スマホの操作が止まる）

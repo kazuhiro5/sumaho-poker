@@ -25,8 +25,13 @@ UI.toast = (msg) => {
 
 /* ---------- テーマ（リアル版／チップ版）とチップの山 ---------- */
 UI.theme = store.get('sp-theme') === 'chip' ? 'chip' : 'real';
-UI.setTheme = (t) => { UI.theme = t; store.set('sp-theme', t); document.body.className = 't-' + t; };
-document.body.className = 't-' + UI.theme;
+const THEME_COLOR = { real: '#0b0d0c', chip: '#0d2a1f' };
+UI.setTheme = (t) => {
+  UI.theme = t; store.set('sp-theme', t); document.body.className = 't-' + t;
+  const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute('content', THEME_COLOR[t]);
+  document.documentElement.style.background = THEME_COLOR[t];
+};
+UI.setTheme(UI.theme);
 const themeSwHTML = () => `<div class="themesw"><button class="${UI.theme === 'real' ? 'on' : ''}" data-theme="real">リアル版</button><button class="${UI.theme === 'chip' ? 'on' : ''}" data-theme="chip">チップ版</button></div>`;
 // チップの額と色（白1・赤5・青10・緑25・黒100・紫500・黄1000）
 const DENOMS = [[1000, 'k1000'], [500, 'k500'], [100, 'k100'], [25, 'k25'], [10, 'k10'], [5, 'k5'], [1, 'k1']];
@@ -139,7 +144,7 @@ function topbarHTML(S) {
   const nextUp = S.settings.blindUpMin && S.phase !== 'lobby' && !S.paused
     ? `<span class="pill">次の上昇まで <b data-until="${S.levelStartedAt + S.settings.blindUpMin * 60000}">--:--</b></span>` : '';
   const left = S.phase === 'lobby' ? '' : `<div class="corner-l">
-    <span class="pill big">ブラインド ${nowBlinds(S).join(' / ')}</span>
+    <span class="pill big">BLINDS ${nowBlinds(S).join(' / ')}</span>
     ${blindsChanged(S) ? `<span class="pill warn">→ 次から ${S.blinds.join(' / ')}</span>` : ''}${nextUp}
     ${S.paused && !UI.menu ? '<button class="pill warn" data-do="resume-game">⏸ 一時停止中　▶ 再開する</button>' : ''}
   </div>`;
@@ -178,7 +183,7 @@ const OPT = {
   rebuy: [[1, 'もう一度もらえる'], [0, '脱落']],
   timeLimit: [[0, 'なし'], [30, '30秒'], [60, '60秒']],
 };
-const OPT_LABEL = { stack: '最初のチップ', level: 'ブラインド', blindUpMin: 'ブラインドを上げる', rebuy: 'チップがなくなったら', timeLimit: '1手の持ち時間' };
+const OPT_LABEL = { stack: '最初のチップ', level: 'BLINDS', blindUpMin: 'BLINDSを上げる', rebuy: 'チップがなくなったら', timeLimit: '1手の持ち時間' };
 function lobbyHTML(S) {
   const ps = S.players;
   const slots = [];
@@ -242,7 +247,7 @@ function tableHTML(S) {
   const pots = (S.pots || []).filter((v) => v > 0);
   const anyAllin = S.players.some((p) => p.allin);
   const potText = pots.length > 1 && anyAllin ? `<small>${pots.map((v, i) => (i ? 'サイド' + i : 'メイン') + ' ' + num(v)).join(' ／ ')}</small>` : '';
-  center += `<div class="pot potstack">${stackHTML(S.pot, 'l', false)}<span>ポット <b>${num(S.pot)}</b>${potText}</span></div>`;
+  center += `<div class="pot potstack">${stackHTML(S.pot, 'l', false)}<span>POT <b>${num(S.pot)}</b>${potText}</span></div>`;
   let banner = '';
   const r = S.result;
   if (S.phase === 'between' && r) {
@@ -263,13 +268,14 @@ function tableHTML(S) {
 }
 function menuHTML(S) {
   const rows = S.players.filter((p) => !p.left).map((p) => `<div class="mrow"><span>${esc(p.name)}　${num(p.chips)}${p.rebuys ? `（もらい直し${p.rebuys}回）` : ''}</span>
-    <span><button data-add="${p.id}">＋${num(S.settings.stack)}</button><button data-kick="${p.id}">外す</button></span></div>`).join('');
+    <span><button data-add="${p.id}">＋${num(S.settings.stack)}</button><button data-sub="${p.id}" ${p.inHand && S.phase === 'hand' ? 'disabled title="勝負の最中は減らせません"' : ''}>−${num(S.settings.stack)}</button>
+      <button data-sit="${p.id}">${p.sitOut ? '戻す' : '離席'}</button><button data-ban="${p.id}" class="danger">BAN</button></span></div>`).join('');
   const L = PokerEngine.LEVELS, lv = N.G.level;
   return `<div class="sheet"><div class="in wide">
     <div class="mhead"><h3>メニュー</h3><span>部屋 <b>${esc(S.room)}</b>　⏸ 一時停止中</span>
       <button class="icon" data-do="mute">${muted ? '🔇 音なし' : '🔊 音あり'}</button></div>
     <h3>見た目</h3>${themeSwHTML()}
-    <h3>ブラインド</h3>
+    <h3>BLINDS</h3>
     <div class="blindctl">
       <button data-do="leveldown" ${lv <= 0 ? 'disabled' : ''}>◀ 下げる</button>
       <div><small>今のゲーム</small><b>${nowBlinds(S).join(' / ')}</b></div>

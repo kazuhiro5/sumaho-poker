@@ -156,3 +156,13 @@ body.t-chip,.t-chip button,.t-chip input,.t-chip select{font-family:"M PLUS Roun
 .t-real .legend>span{background:rgba(0,0,0,.25);border:1px solid rgba(216,178,106,.25)}
 .t-real .legend b{color:var(--gold)}
 .legendnote{color:var(--muted);font-size:13px;margin:0 0 4px}
+/* 賭けたチップと数字を約1.8倍に（2026-11-23） */
+.bet.betstack.onfelt .stack.s{--W:40px;--H:16px;--T:5px}
+.bet.betstack.onfelt .amt{font-size:38px}
+.t-chip .bet.betstack.onfelt .amt{padding:4px 16px;border-width:3px}
+/* 勝った人の表示は右上（☰の下）に出す。チップの「＋いくつ」と重ならないように */
+.stage .banner{left:auto;right:6px;top:58px;transform:none;text-align:right;font-size:22px;padding:10px 18px;max-width:46%;white-space:normal}
+.stage .banner small{text-align:right}
+/* プレイヤーの行のボタン */
+.mrow button:disabled{opacity:.35}
+.mrow button.danger{background:linear-gradient(180deg,#5b2622,#3e1714)}

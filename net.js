@@ -67,6 +67,7 @@ function hostHandle(pid, m, c) {
   const G = N.G, p = G.players.find((x) => x.id === pid);
   if (m.t === 'join') {
     const name = String(m.name || '').trim().slice(0, 8) || '名なし';
+    if ((G.banned || []).includes(pid)) { c.send({ t: 'banned' }); setTimeout(() => { try { c.close(); } catch (e) { /* noop */ } }, 300); return; }
     if (!p && G.players.filter((x) => !x.left).length >= MAX_PLAYERS) { c.send({ t: 'full' }); return; }
     PokerEngine.addPlayer(G, pid, name);
   } else if (!p) return;
@@ -96,6 +97,13 @@ function hostRemove(pid) {
   N.conns.delete(pid);
 }
 
+// BAN：部屋から出して、この部屋には入り直せなくする（端末のIDで見分ける）
+function hostBan(pid) {
+  N.G.banned = (N.G.banned || []).concat(pid);
+  const c = N.conns.get(pid);
+  if (c) { try { c.send({ t: 'banned' }); setTimeout(() => c.close(), 300); } catch (e) { /* noop */ } }
+  hostRemove(pid); hostAfter();
+}
 function hostKick(pid) {
   const c = N.conns.get(pid);
   if (c) { try { c.send({ t: 'kicked' }); setTimeout(() => c.close(), 300); } catch (e) { /* noop */ } }
@@ -201,6 +209,7 @@ function connectHost() {
       UI.render();
     } else if (m.t === 'err') UI.toast(m.msg);
     else if (m.t === 'full') UI.fail('部屋がいっぱいです（最大' + MAX_PLAYERS + '人）。');
+    else if (m.t === 'banned') { N.hostConn = null; UI.fail('この部屋には入れません（BANされました）。'); }
     else if (m.t === 'kicked') { N.hostConn = null; UI.fail('iPadの操作で部屋から外されました。'); }
     else if (m.t === 'closed') { N.hostConn = null; UI.fail('部屋が終わりました。'); }
   });
