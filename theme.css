@@ -149,3 +149,10 @@ body.t-chip,.t-chip button,.t-chip input,.t-chip select{font-family:"M PLUS Roun
 .t-real .themesw button.on{background:linear-gradient(180deg,#e3c27e,#b48a3e);color:#1d1406}
 /* 賭けたチップ：テーブルの上（席と中央の間）に置く */
 .bet.onfelt{position:absolute;transform:translate(-50%,-50%);z-index:3;bottom:auto}
+/* メニュー：チップの色の見本 */
+.legend{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:4px 0 6px}
+.legend>span{display:flex;flex-direction:column;align-items:center;gap:6px;background:rgba(255,255,255,.05);border-radius:10px;padding:10px 4px}
+.legend b{font-size:16px}
+.t-real .legend>span{background:rgba(0,0,0,.25);border:1px solid rgba(216,178,106,.25)}
+.t-real .legend b{color:var(--gold)}
+.legendnote{color:var(--muted);font-size:13px;margin:0 0 4px}

@@ -42,6 +42,12 @@ function chipCols(amount, perCol, maxCols) {
   }
   return cols.slice(0, maxCols);
 }
+// メニュー用：チップの色と額の見本（小さい額から順に）
+function chipLegendHTML() {
+  return `<div class="legend">${DENOMS.slice().reverse().map(([v, cls]) => `<span><span class="stack m"><span class="cols"><span class="col" style="--n:3">${
+    [0, 1, 2].map((i) => `<i class="chip ${cls}" style="--i:${i}"></i>`).join('')}</span></span></span><b>${num(v)}</b></span>`).join('')}</div>
+    <p class="legendnote">数字はチップの合計です。色は目安で、額は数字で見てください。</p>`;
+}
 function stackHTML(amount, size = 'm', label = true, prefix = '') {
   amount = Math.max(0, Math.round(amount || 0));
   const cols = amount ? chipCols(amount, size === 's' ? 5 : 8, size === 'l' ? 4 : 3) : [];
@@ -275,6 +281,7 @@ function menuHTML(S) {
       <button data-do="end" class="danger">ここで終わる</button>
     </div>
     <h3>プレイヤー</h3>${rows}
+    <h3>チップの色</h3>${chipLegendHTML()}
     <div class="mclose"><button class="go" data-do="close-resume">再開して閉じる</button>
       <button class="cancel" data-do="close-stay">止めたまま閉じる</button></div>
   </div></div>`;
