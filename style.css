@@ -6,6 +6,7 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
   font-family:"Hiragino Sans","Noto Sans JP",system-ui,sans-serif;-webkit-user-select:none;user-select:none;overflow:hidden}
+#app{height:100%}
 button{font:inherit;color:inherit;border:0;cursor:pointer}
 
 /* 入口 */
