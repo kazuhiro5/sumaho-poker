@@ -23,6 +23,8 @@ function hostCreate(resume) {
   const room = resume ? resume.room : String(Math.floor(1000 + Math.random() * 9000));
   N.peer = new Peer(PREFIX + room);
   N.peer.on('open', () => {
+    // 仲介サーバーにつなぎ直した時も 'open' が来る。その時はゲームを作り直さない
+    if (N.G) { N.status = ''; return; }
     N.role = 'host'; N.room = room; N.status = '';
     N.G = resume ? resume.G : PokerEngine.createGame({});
     N.G.players.forEach((p) => { p.online = false; });
