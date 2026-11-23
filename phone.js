@@ -31,6 +31,7 @@ UI.phoneHTML = (S, ME) => {
   const faces = PH.peeking ? ME.hole.map((c) => card(c)).join('') : card('back') + card('back');
   let status;
   if (S.paused) status = '⏸ 一時停止中です（iPadで再開するまで待ってください）';
+  else if (me.sitOut && !ME.folded) status = '離席中です（このゲームは自動で進みます。☰で席に戻れます）';
   else if (ME.folded) status = '降りました。次のゲームを待っています';
   else if (o) status = o.toCall ? `あなたの番です　コールに必要 <b>${num(o.toCall)}</b>` : 'あなたの番です';
   else if (S.toAct) status = `${esc(nameOf(S, S.toAct))} の番です`;
@@ -129,7 +130,7 @@ document.addEventListener('click', (e) => {
     return;
   }
   // 子（スマホ）
-  if (d.do === 'sitout') { const me = N.S.players.find((p) => p.id === myId); clientSend({ t: 'sitout', on: !(me && me.sitOut) }); PH.menu = false; return; }
+  if (d.do === 'sitout') { const me = N.S.players.find((p) => p.id === myId); clientSend({ t: 'sitout', on: !(me && me.sitOut) }); PH.menu = false; UI.render(); return; }
   if (d.do === 'leave') {
     if (PH.leaveArmed) { leaveRoom(); return; }
     PH.leaveArmed = true; UI.render(); setTimeout(() => { PH.leaveArmed = false; UI.render(); }, 5000); return;

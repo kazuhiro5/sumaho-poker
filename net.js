@@ -121,6 +121,10 @@ function hostAfter() {
     if (!p.online || p.sitOut || p.left) wait = Math.min(wait || 10000, p.online ? 1500 : 10000);
     if (!N.paused && wait) N.timers.turn = setTimeout(() => { PokerEngine.autoAct(N.G); hostAfter(); }, Math.max(0, wait));
   } else N.deadline = 0;
+  if (G.phase === 'waiting' && !N.paused) {
+    const ready = G.players.filter((x) => !x.left && !x.out && !x.sitOut && x.chips > 0).length >= 2;
+    if (ready) N.timers.next = setTimeout(() => { if (N.G.phase === 'waiting' && PokerEngine.startHand(N.G, Date.now())) hostAfter(); }, 2000);
+  }
   if (G.phase === 'between' && !N.paused) {
     const wait = G.hand && G.hand.result && G.hand.result.showdown ? 8000 : 5000;
     N.nextAt = Date.now() + wait;
@@ -185,6 +189,9 @@ function connectHost() {
       N.S = m.s; N.ME = m.me; N.status = ''; N.role = 'client';
       N.S.skew = Date.now() - N.S.now; // 親と子の時計のずれ
       if (!wasTurn && N.ME.options && !N.S.paused) UI.myTurnAlert();
+      const sit = !!(N.ME && N.ME.sitOut);
+      if (N.lastSit !== undefined && N.lastSit !== sit) UI.toast(sit ? '離席しました（次のゲームから休みます）' : '席に戻りました（次のゲームから入ります）');
+      N.lastSit = sit;
       UI.render();
     } else if (m.t === 'err') UI.toast(m.msg);
     else if (m.t === 'full') UI.fail('部屋がいっぱいです（最大' + MAX_PLAYERS + '人）。');
