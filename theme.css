@@ -189,3 +189,9 @@ body.t-chip,.t-chip button,.t-chip input,.t-chip select{font-family:"M PLUS Roun
 .t-real .seat .nametag{background:linear-gradient(180deg,#2a2117,#15100b);border-color:rgba(216,178,106,.6);color:#f4efe3}
 /* 勝った人の表示「WIN 〇〇」 */
 .win{font-family:"Playfair Display",serif;font-weight:800;letter-spacing:.12em;color:var(--gold)}
+/* チップの絵を0.8倍・場のカードを1.2倍（2026-11-23） */
+.stack{--W:24px;--H:9.6px;--T:3.2px}
+.stack.s{--W:17.6px;--H:7.2px;--T:2.4px}
+.stack.l{--W:32px;--H:12.8px;--T:4px}
+.bet.betstack.onfelt .stack.s{--W:32px;--H:12.8px;--T:4px}
+.board{--w:min(8.4vw,77px);gap:10px}
