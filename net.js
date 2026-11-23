@@ -207,7 +207,8 @@ function connectHost() {
   c.on('close', () => { if (N.hostConn === c && N.status !== 'error') retryLater(); });
 }
 function retryLater() {
-  if (N.retry++ < 30) { UI.banner('iPadにつなぎ直しています…'); setTimeout(connectHost, 2000); }
+  // iPadが前の部屋を取り戻すのに約1分かかるため、約2分待つ
+  if (N.retry++ < 60) { UI.banner('iPadにつなぎ直しています…'); setTimeout(connectHost, 2000); }
   else UI.fail('iPadとの接続が切れました。iPadの画面が開いているか確かめて、入り直してください。');
 }
 function clientSend(m) {
