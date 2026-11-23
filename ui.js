@@ -117,7 +117,7 @@ function topbarHTML(S) {
 function timerHTML(S) {
   if (S.paused) return '';
   let until = 0, total = 10, kind = '';
-  if (S.phase === 'hand' && S.deadline) { until = S.deadline; total = 10; kind = 'turn'; }
+  if (S.phase === 'hand' && S.deadline) { until = S.deadline; total = S.settings.timeLimit || 60; kind = 'turn'; }
   if (S.phase === 'between' && S.nextAt) { until = S.nextAt; total = Math.round((S.nextAt - S.now) / 1000) || 8; kind = 'next'; }
   if (!until) return '';
   return `<div class="ctimer ${kind}" data-timer="${until}" data-total="${total}" hidden>
@@ -298,9 +298,11 @@ UI.tick = () => {
     const ms = +el.dataset.timer - (Date.now() - skew), total = +el.dataset.total * 1000;
     el.hidden = ms > total || ms <= 0;
     if (el.hidden) return;
-    el.querySelector('b').textContent = Math.ceil(ms / 1000);
+    // 手番は残り10秒から数字を出す（それまでは線だけ）。次のゲームまでは最初から数字
+    const late = ms <= 10000;
+    el.querySelector('b').textContent = el.classList.contains('turn') && !late ? '' : Math.ceil(ms / 1000);
     el.querySelector('.fg').style.strokeDashoffset = String(100 - (ms / total) * 100);
-    el.classList.toggle('hurry', el.classList.contains('turn') && ms <= 5000);
+    el.classList.toggle('hurry', el.classList.contains('turn') && late);
   });
 };
 setInterval(UI.tick, 100);
