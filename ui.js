@@ -4,7 +4,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 const num = (n) => Number(n || 0).toLocaleString('ja-JP');
 const qs = new URLSearchParams(location.search);
 
-const UI = { err: '', menu: false };
+const UI = { err: '', menu: false, handSeen: -1, boardSeen: 0, seen: new Set() };
 
 function card(code, extra = '') {
   if (!code) return `<span class="c empty ${extra}"></span>`;
@@ -37,6 +37,22 @@ UI.beep = (freqs, dur = 0.12, vol = 0.15) => {
     g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur * 1.6);
     o.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur * 1.8);
   });
+};
+
+// カードがめくれる「ペラッ」：短いノイズを、高い音から少し下げながら鳴らす
+UI.flip = (count = 1, vol = 0.5) => {
+  if (muted || !actx) return;
+  for (let i = 0; i < count; i++) {
+    const t = actx.currentTime + i * 0.13, len = 0.09;
+    const buf = actx.createBuffer(1, Math.floor(actx.sampleRate * len), actx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let k = 0; k < d.length; k++) d[k] = (Math.random() * 2 - 1) * Math.pow(1 - k / d.length, 2);
+    const src = actx.createBufferSource(); src.buffer = buf;
+    const bp = actx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.2;
+    bp.frequency.setValueAtTime(4200, t); bp.frequency.exponentialRampToValueAtTime(1600, t + len);
+    const g = actx.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + len);
+    src.connect(bp).connect(g).connect(actx.destination); src.start(t);
+  }
 };
 
 /* ---------- 入口 ---------- */
@@ -123,7 +139,7 @@ function seatHTML(S, p, i, n) {
   if (S.toAct === p.id && S.phase === 'hand') cls.push('turn');
   if (win && S.phase === 'between') cls.push('win');
   let hole = '';
-  if (p.inHand && !p.folded) hole = p.hole ? p.hole.map((c) => card(c, 'flip')).join('') : card('back') + card('back');
+  if (p.inHand && !p.folded) hole = p.hole ? p.hole.map((c) => card(c, UI.seen.has(p.id) ? '' : 'flip')).join('') : card('back') + card('back');
   const made = r && r.hands && r.hands[p.id];
   const tag = p.out ? '脱落' : !p.online ? '切断中' : p.sitOut ? '離席' : p.folded ? 'フォールド' : p.allin ? 'オールイン'
     : made && S.phase === 'between' ? made.name : p.pos;
@@ -143,7 +159,8 @@ function seatHTML(S, p, i, n) {
 }
 function tableHTML(S) {
   const seats = S.players.filter((p) => !p.left || p.inHand);
-  let center = `<div class="board">${boardHTML(S.board)}</div>`;
+  const b = S.board || [];
+  let center = `<div class="board">${[0, 1, 2, 3, 4].map((i) => card(b[i], b[i] && i >= UI.boardSeen ? 'flip' : '')).join('')}</div>`;
   const pots = (S.pots || []).filter((v) => v > 0);
   const potText = pots.length > 1 ? `<small>${pots.map((v, i) => (i ? 'サイド' + i : 'メイン') + ' ' + num(v)).join(' ／ ')}</small>` : '';
   center += `<div class="pot">ポット ${num(S.pot)}${potText}</div>`;
@@ -208,7 +225,16 @@ UI.render = () => {
     else if (S.phase === 'lobby') {
       app.innerHTML = lobbyHTML(S);
       if (typeof QRCode !== 'undefined') new QRCode($('#qr'), { text: location.origin + location.pathname + '?room=' + S.room, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
-    } else app.innerHTML = tableHTML(S);
+    } else {
+      // 新しく表になったカードだけ、めくる動きと「ペラッ」を出す
+      if (S.handNo !== UI.handSeen) { UI.handSeen = S.handNo; UI.boardSeen = 0; UI.seen = new Set(); }
+      const nb = (S.board || []).length - UI.boardSeen;
+      const newShown = S.players.filter((p) => p.hole && !UI.seen.has(p.id)).length;
+      app.innerHTML = tableHTML(S);
+      if (nb > 0 || newShown > 0) UI.flip(Math.min(8, Math.max(0, nb) + newShown * 2));
+      UI.boardSeen = (S.board || []).length;
+      S.players.forEach((p) => { if (p.hole) UI.seen.add(p.id); });
+    }
   } else app.innerHTML = S.phase === 'end' ? resultHTML(S, false) : UI.phoneHTML(S, N.ME);
   UI.tick();
 };

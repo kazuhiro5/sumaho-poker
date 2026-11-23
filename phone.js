@@ -148,7 +148,7 @@ document.addEventListener('input', (e) => {
   $('.sheet .go').textContent = num(PH.amt) + ' に' + (o.cur === 0 ? 'ベット' : 'レイズ');
 });
 // 押している間だけ手札を見せる
-function setPeek(on) { if (PH.peeking === on || !$('#peek')) return; PH.peeking = on; UI.render(); }
+function setPeek(on) { if (PH.peeking === on || !$('#peek')) return; PH.peeking = on; if (on) UI.flip(1, 0.25); UI.render(); }
 document.addEventListener('pointerdown', (e) => { if (e.target.closest('#peek')) setPeek(true); });
 ['pointerup', 'pointercancel'].forEach((t) => document.addEventListener(t, () => setPeek(false)));
 document.addEventListener('contextmenu', (e) => { if (e.target.closest('#peek')) e.preventDefault(); });
