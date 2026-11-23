@@ -8,7 +8,7 @@ UI.phoneHTML = (S, ME) => {
   const head = `<div class="me"><span class="bl">${S.phase === 'lobby' ? '待機中' : `ブラインド ${(S.handBlinds || S.blinds).join(' / ')}`}</span>
     <span class="who"><span class="nm">${esc(me.name)}</span><button class="mbtn" data-do="pmenu">☰</button></span></div>`;
   const tail = PH.menu ? phoneMenuHTML(S, me) : '';
-  const side = `<div class="side"><div><small>ポット</small><b>${num(S.pot || 0)}</b></div><div class="mine"><small>手元のチップ</small><b>${num(me.chips)}</b></div></div>`;
+  const side = `<div class="side chipside"><div><small>ポット</small>${stackHTML(S.pot || 0, 'l')}</div><div class="mine"><small>手元のチップ</small>${stackHTML(me.chips, 'l')}</div></div>`;
 
   if (S.phase === 'lobby') {
     const i = S.players.findIndex((p) => p.id === myId);
@@ -61,6 +61,7 @@ UI.phoneHTML = (S, ME) => {
 function phoneMenuHTML(S, me) {
   return `<div class="sheet" data-close="1"><div class="in">
     <div class="mhead"><h3>メニュー</h3><span>部屋 <b>${esc(S.room)}</b></span></div>
+    ${themeSwHTML()}
     <div class="pmenu">
       <button data-do="mute">${muted ? '🔇 音なし（押すと音あり）' : '🔊 音あり（押すと音なし）'}</button>
       ${S.phase !== 'lobby' ? `<button data-do="sitout">${me.sitOut ? '席に戻る' : '離席する（次のゲームから休む）'}</button>` : ''}
@@ -108,6 +109,7 @@ document.addEventListener('click', (e) => {
   if (d.do === 'create') { UI.unlockAudio(); store.del('sp-host'); hostCreate(); return; }
   if (d.do === 'resume') { UI.unlockAudio(); hostCreate(JSON.parse(store.get('sp-host'))); return; }
   if (d.do === 'home') { location.href = location.pathname; return; }
+  if (d.theme) { UI.setTheme(d.theme); UI.render(); return; }
   if (d.do === 'mute') { muted = !muted; store.set('sp-mute', muted ? '1' : '0'); UI.render(); return; }
   // 親（iPad）
   if (N.role === 'host') {

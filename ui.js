@@ -23,6 +23,33 @@ UI.toast = (msg) => {
   document.body.appendChild(t); setTimeout(() => t.remove(), 1600);
 };
 
+/* ---------- テーマ（リアル版／チップ版）とチップの山 ---------- */
+UI.theme = store.get('sp-theme') === 'chip' ? 'chip' : 'real';
+UI.setTheme = (t) => { UI.theme = t; store.set('sp-theme', t); document.body.className = 't-' + t; };
+document.body.className = 't-' + UI.theme;
+const themeSwHTML = () => `<div class="themesw"><button class="${UI.theme === 'real' ? 'on' : ''}" data-theme="real">リアル版</button><button class="${UI.theme === 'chip' ? 'on' : ''}" data-theme="chip">チップ版</button></div>`;
+// チップの額と色（白1・赤5・青10・緑25・黒100・紫500・黄1000）
+const DENOMS = [[1000, 'k1000'], [500, 'k500'], [100, 'k100'], [25, 'k25'], [10, 'k10'], [5, 'k5'], [1, 'k1']];
+// 額をチップに分ける。1枚だけの山にならないよう、3枚以上積める額のチップから使う
+function chipCols(amount, perCol, maxCols) {
+  const cols = []; let rest = amount;
+  const start = Math.max(0, DENOMS.findIndex(([v]) => amount / v >= 3));
+  for (const [v, cls] of DENOMS.slice(start)) {
+    let n = Math.floor(rest / v);
+    if (!n) continue;
+    rest -= n * v;
+    while (n > 0 && cols.length < maxCols) { const k = Math.min(n, perCol); cols.push({ cls, k }); n -= k; }
+  }
+  return cols.slice(0, maxCols);
+}
+function stackHTML(amount, size = 'm', label = true, prefix = '') {
+  amount = Math.max(0, Math.round(amount || 0));
+  const cols = amount ? chipCols(amount, size === 's' ? 5 : 8, size === 'l' ? 4 : 3) : [];
+  const colHTML = cols.map(({ cls, k }) => `<span class="col" style="--n:${k}">${Array.from({ length: k }, (_, i) =>
+    `<i class="chip ${cls}" style="--i:${i}"></i>`).join('')}</span>`).join('');
+  return `<span class="stack ${size}"><span class="cols">${colHTML}</span>${label ? `<b class="amt">${prefix}${num(amount)}</b>` : ''}</span>`;
+}
+
 /* ---------- 音（その場で作る短い音） ---------- */
 let actx = null;
 let muted = store.get('sp-mute') === '1';
@@ -186,8 +213,8 @@ function seatHTML(S, p, i, n) {
   const made = r && r.hands && r.hands[p.id];
   const tag = p.out ? '脱落' : !p.online ? '切断中' : p.sitOut ? '離席' : p.folded ? 'フォールド' : p.allin ? 'オールイン'
     : made && S.phase === 'between' ? made.name : p.pos;
-  const bet = p.bet && S.phase === 'hand' ? `<div class="bet" style="${y < 50 ? 'top' : 'bottom'}:calc(100% + 8px)">${num(p.bet)}</div>` : '';
-  const winTag = win && S.phase === 'between' ? `<div class="bet" style="${y < 50 ? 'top' : 'bottom'}:calc(100% + 8px)">＋${num(win)}</div>` : '';
+  const bet = p.bet && S.phase === 'hand' ? `<div class="bet betstack" style="${y < 50 ? 'top' : 'bottom'}:calc(100% + 8px)">${stackHTML(p.bet, 's')}</div>` : '';
+  const winTag = win && S.phase === 'between' ? `<div class="bet betstack" style="${y < 50 ? 'top' : 'bottom'}:calc(100% + 8px)">${stackHTML(win, 's', true, '＋')}</div>` : '';
   let ring = '';
   if (cls.includes('turn') && S.deadline) {
     const T = S.settings.timeLimit, left = (S.deadline - S.now) / 1000;
@@ -197,7 +224,7 @@ function seatHTML(S, p, i, n) {
   return `<div class="${cls.join(' ')}" style="left:${x}%;top:${y}%">
     <div class="hole" ${p.hole ? 'style="--w:48px"' : ''}>${hole}</div>
     <div class="box">${ring}${p.dealer ? '<div class="btn-d">D</div>' : ''}
-      <div class="nm">${esc(p.name)}</div><div class="ch">${num(p.chips)}</div><div class="tag">${tag || ''}</div>
+      <div class="nm">${esc(p.name)}</div><div class="ch">${stackHTML(p.chips, 'm')}</div><div class="tag">${tag || ''}</div>
     </div>${bet || winTag}</div>`;
 }
 function tableHTML(S) {
@@ -206,7 +233,7 @@ function tableHTML(S) {
   let center = `<div class="board">${[0, 1, 2, 3, 4].map((i) => card(b[i], b[i] && i >= UI.boardSeen ? 'flip' : '')).join('')}</div>`;
   const pots = (S.pots || []).filter((v) => v > 0);
   const potText = pots.length > 1 ? `<small>${pots.map((v, i) => (i ? 'サイド' + i : 'メイン') + ' ' + num(v)).join(' ／ ')}</small>` : '';
-  center += `<div class="pot">ポット ${num(S.pot)}${potText}</div>`;
+  center += `<div class="pot potstack">${stackHTML(S.pot, 'l', false)}<span>ポット <b>${num(S.pot)}</b>${potText}</span></div>`;
   let banner = '';
   const r = S.result;
   if (S.phase === 'between' && r) {
@@ -217,7 +244,7 @@ function tableHTML(S) {
   }
   if (S.phase === 'waiting') banner = `<div class="banner">遊べる人が2人未満です<small>参加者が来たら「次のゲーム」を押してください</small></div>`;
   return `<div class="table-view">${topbarHTML(S)}
-    <div class="stage"><div class="felt"></div>
+    <div class="stage"><div class="felt"><div class="feltmark">${UI.theme === 'real' ? 'TEXAS HOLD’EM' : ''}</div></div>
       ${seats.map((p, i) => seatHTML(S, p, i, seats.length)).join('')}
       ${banner}<div class="center">${center}</div>
     </div>
@@ -232,6 +259,7 @@ function menuHTML(S) {
   return `<div class="sheet"><div class="in wide">
     <div class="mhead"><h3>メニュー</h3><span>部屋 <b>${esc(S.room)}</b>　⏸ 一時停止中</span>
       <button class="icon" data-do="mute">${muted ? '🔇 音なし' : '🔊 音あり'}</button></div>
+    <h3>見た目</h3>${themeSwHTML()}
     <h3>ブラインド</h3>
     <div class="blindctl">
       <button data-do="leveldown" ${lv <= 0 ? 'disabled' : ''}>◀ 下げる</button>

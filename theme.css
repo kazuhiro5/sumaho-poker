@@ -1,0 +1,149 @@
+/* テーマ：リアル版（t-real）とチップ版（t-chip）。本体の style.css の上に重ねる */
+/* ---------- チップ（共通の形） ---------- */
+/* 横から見たチップを積む：上の面（楕円）＋ふち（厚み）。下のチップはふちだけ見える */
+.stack{--W:30px;--H:12px;--T:4px;display:inline-flex;flex-direction:column;align-items:center;gap:3px;vertical-align:middle}
+.stack.s{--W:22px;--H:9px;--T:3px}
+.stack.l{--W:40px;--H:16px;--T:5px}
+.cols{display:flex;gap:3px;align-items:flex-end}
+.col{position:relative;width:var(--W);height:calc((var(--n) - 1) * var(--T) + var(--H) + var(--T))}
+.chip{position:absolute;left:0;width:var(--W);height:calc(var(--H) + var(--T));bottom:calc(var(--i) * var(--T))}
+.chip::before{content:"";position:absolute;left:0;right:0;top:calc(var(--H) / 2);height:calc(var(--H) / 2 + var(--T));
+  border-radius:0 0 50% 50% / 0 0 calc(var(--H) / 2) calc(var(--H) / 2);
+  background:repeating-linear-gradient(90deg,var(--edge) 0 5px,var(--spot) 5px 9px)}
+.chip::after{content:"";position:absolute;left:0;right:0;top:0;height:var(--H);border-radius:50%;
+  background:radial-gradient(ellipse at 50% 50%,var(--c) 0 42%,var(--spot) 42% 50%,var(--c) 50% 100%)}
+/* 色と額：白1・赤5・青10・緑25・黒100・紫500・黄1000 */
+.k1{--c:#f3efe4;--edge:#dcd5c3;--spot:#2c62b5}
+.k5{--c:#d8392f;--edge:#b52c24;--spot:#fff}
+.k10{--c:#2f6ed8;--edge:#2456b0;--spot:#fff}
+.k25{--c:#2e9b57;--edge:#237b44;--spot:#fff}
+.k100{--c:#2a2a2a;--edge:#151515;--spot:#f3efe4}
+.k500{--c:#7c41c4;--edge:#61309e;--spot:#ffe17a}
+.k1000{--c:#f2c21c;--edge:#d39f0b;--spot:#7a3d00}
+.amt{font-size:15px;line-height:1}
+
+/* ---------- 2. チップ版：今のデザインのまま、チップをアニメ調に ---------- */
+/* 太い輪郭線・はっきりした色・上の面に白いハイライト */
+.t-chip .chip::before{border:2px solid #14201b;border-top:0}
+.t-chip .chip::after{border:2px solid #14201b;
+  background:radial-gradient(ellipse at 35% 30%,rgba(255,255,255,.55) 0 14%,transparent 15%),
+    radial-gradient(ellipse at 50% 50%,var(--c) 0 40%,var(--spot) 40% 50%,var(--c) 50% 100%)}
+.t-chip .amt,.t-chip .pot b,.t-chip .side .amt{font-family:"M PLUS Rounded 1c",system-ui,sans-serif;font-weight:800}
+.t-chip .seat .ch .amt{color:var(--gold);font-size:16px}
+.t-chip .seat .ch{margin:4px 0 2px}
+.t-chip .bet.betstack{background:none;padding:0;box-shadow:none}
+.t-chip .bet.betstack .amt{background:var(--gold);color:#3a2a00;padding:3px 12px;border-radius:999px;font-size:22px;border:2px solid #14201b}
+.t-chip .potstack{display:flex;align-items:center;gap:12px;padding:8px 18px}
+.t-chip .potstack b{color:var(--gold);font-size:24px}
+.t-chip .chipside .amt{font-size:26px;font-family:"M PLUS Rounded 1c",system-ui,sans-serif}
+.t-chip .chipside .mine .amt{color:var(--gold)}
+
+/* ---------- 3. リアル版：本物のテーブルに寄せる ---------- */
+.t-real{--felt:#145a3e;--bg:#0b0d0c;--gold:#d8b26a}
+body.t-real{background:radial-gradient(ellipse at 50% 40%,#1d2320 0%,#0b0d0c 70%)}
+/* フェルト：細かいノイズの質感＋中央の光 */
+.t-real .felt{
+  background:
+    radial-gradient(ellipse at 50% 45%,rgba(255,255,255,.10) 0%,rgba(255,255,255,0) 55%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .22 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+    radial-gradient(ellipse at center,#1d7a54 0%,#145a3e 60%,#0c3a28 100%);
+  border:18px solid #3b2414;
+  box-shadow:
+    0 0 0 3px #6e4a2a,              /* 木のふちの外側の線 */
+    0 0 0 5px #1a0f08,
+    inset 0 0 0 2px rgba(216,178,106,.55), /* 内側の金の細線 */
+    inset 0 0 60px rgba(0,0,0,.55),
+    0 24px 50px rgba(0,0,0,.7)}
+/* 木のふちの木目：borderに重ねられないので、外側の影で厚みと光を出す */
+.t-real .felt::before{content:"";position:absolute;inset:-18px;border-radius:50%;pointer-events:none;
+  background:repeating-linear-gradient(100deg,rgba(255,255,255,.05) 0 2px,transparent 2px 9px);
+  -webkit-mask:radial-gradient(ellipse at center,transparent 0 calc(50% - 18px),#000 calc(50% - 17px));
+  mask:radial-gradient(ellipse at center,transparent 0 calc(50% - 18px),#000 calc(50% - 17px))}
+.t-real .feltmark{position:absolute;left:50%;top:72%;transform:translateX(-50%);font-family:"Playfair Display",serif;
+  letter-spacing:.35em;color:rgba(216,178,106,.22);font-size:22px;white-space:nowrap}
+.t-real .c{background:linear-gradient(160deg,#fffdf6 0%,#f1ece0 100%);box-shadow:0 1px 0 #fff inset,0 6px 14px rgba(0,0,0,.45),0 1px 2px rgba(0,0,0,.4);
+  font-family:"Playfair Display",serif}
+.t-real .c.back{background:
+  repeating-linear-gradient(45deg,rgba(255,255,255,.08) 0 2px,transparent 2px 7px),
+  repeating-linear-gradient(-45deg,rgba(255,255,255,.08) 0 2px,transparent 2px 7px),#6b1420;border:3px solid #f4efe3}
+.t-real .seat .box{background:linear-gradient(180deg,rgba(28,22,16,.92),rgba(12,10,8,.95));border:1px solid rgba(216,178,106,.45);
+  box-shadow:0 8px 20px rgba(0,0,0,.6)}
+.t-real .seat .nm{font-weight:600;letter-spacing:.04em}
+.t-real .seat.turn .box{border-color:var(--gold);box-shadow:0 0 0 3px rgba(216,178,106,.25),0 0 26px rgba(216,178,106,.45)}
+.t-real .btn-d{background:radial-gradient(circle at 35% 30%,#fff,#d9d4c7);box-shadow:0 2px 5px rgba(0,0,0,.5);font-family:"Playfair Display",serif}
+/* チップ：グラデーションと影で立体に。輪郭線は使わない */
+.t-real .chip::before{background:
+  linear-gradient(180deg,rgba(255,255,255,.18),rgba(0,0,0,.35)),
+  repeating-linear-gradient(90deg,var(--edge) 0 5px,var(--spot) 5px 8px)}
+.t-real .chip::after{background:
+  radial-gradient(ellipse at 40% 30%,rgba(255,255,255,.35) 0 10%,transparent 40%),
+  radial-gradient(ellipse at 50% 50%,var(--c) 0 34%,rgba(255,255,255,.75) 34% 38%,var(--c) 38% 60%,
+    var(--spot) 60% 66%,var(--c) 66% 100%);
+  box-shadow:inset 0 -1px 0 rgba(0,0,0,.25)}
+.t-real .col{filter:drop-shadow(0 3px 2px rgba(0,0,0,.55))}
+.t-real .amt{font-family:"Playfair Display",serif;font-weight:700;color:#f4efe3}
+.t-real .seat .ch .amt{color:var(--gold);font-size:16px}
+.t-real .seat .ch{margin:4px 0 2px}
+.t-real .bet.betstack{background:none;padding:0;box-shadow:none}
+.t-real .bet.betstack .amt{font-size:22px;color:#f4efe3;text-shadow:0 2px 4px rgba(0,0,0,.8)}
+.t-real .potstack{display:flex;align-items:center;gap:12px;background:rgba(0,0,0,.35);padding:8px 18px;border:1px solid rgba(216,178,106,.3)}
+.t-real .potstack span{font-family:"Playfair Display",serif;color:#e9e2d0;font-size:16px;letter-spacing:.08em}
+.t-real .potstack b{color:var(--gold);font-size:24px}
+.t-real .pill,.t-real .ginfo b{background:rgba(20,16,12,.7);border:1px solid rgba(216,178,106,.35)}
+.t-real .corner-r .icon{background:rgba(20,16,12,.7);border:1px solid rgba(216,178,106,.35)}
+.t-real .ctimer .fg{stroke:var(--gold)}
+/* スマホ（リアル版） */
+.t-real .hand-view{background:radial-gradient(ellipse at 50% 30%,#1b5a40 0%,#0f3426 70%,#0a2219 100%)}
+.t-real .peek{background:rgba(0,0,0,.25);border:1px solid rgba(216,178,106,.25)}
+.t-real .acts button{box-shadow:inset 0 1px 0 rgba(255,255,255,.15),0 4px 10px rgba(0,0,0,.4);letter-spacing:.04em}
+.t-real .acts .k{background:linear-gradient(180deg,#2f7a57,#1f5a3f)}
+.t-real .acts .r{background:linear-gradient(180deg,#c9a35a,#9c7a35);color:#1d1406}
+.t-real .acts .a{background:linear-gradient(180deg,#8e2a4f,#651a37)}
+.t-real .acts .f{background:linear-gradient(180deg,#5b2622,#3e1714)}
+.t-real .side div{background:rgba(0,0,0,.3);border:1px solid rgba(216,178,106,.25)}
+.t-real .chipside .amt{font-size:24px}
+.t-real .chipside .mine .amt{color:var(--gold)}
+.chipside div{gap:6px}
+.t-real .c.empty{background:transparent;border:2px dashed rgba(216,178,106,.25);box-shadow:none}
+.t-real .amt,.t-real .potstack b,.t-real .c{font-variant-numeric:lining-nums tabular-nums}
+
+/* ---------- 文字：テーマごとに全体をそろえる ---------- */
+body.t-real,.t-real button,.t-real input,.t-real select{font-family:"Playfair Display","Shippori Mincho",serif;font-variant-numeric:lining-nums}
+body.t-chip,.t-chip button,.t-chip input,.t-chip select{font-family:"M PLUS Rounded 1c",system-ui,sans-serif}
+.t-real .c .rk,.t-real .c .st{font-family:"Playfair Display",serif}
+.t-real b,.t-real .nm,.t-real h1,.t-real h2,.t-real h3{font-weight:700}
+
+/* ---------- リアル版：入口・ロビー・メニュー・結果・スマホの部品 ---------- */
+.t-real{--muted:#b8ad95;--ink:#f4efe3}
+.t-real .home h1,.t-real .final h2{font-size:32px;letter-spacing:.06em;color:var(--gold)}
+.t-real .panel,.t-real .joinbox,.t-real .sheet .in,.t-real .plist div,.t-real .blindctl div{
+  background:linear-gradient(180deg,rgba(32,26,18,.92),rgba(14,12,9,.95));border:1px solid rgba(216,178,106,.35)}
+.t-real .plist div.wait{background:none;border:1px dashed rgba(216,178,106,.3)}
+.t-real .panel input{background:#f6f1e4;font-family:"Playfair Display","Shippori Mincho",serif}
+.t-real .go,.t-real .start{background:linear-gradient(180deg,#c9a35a,#9c7a35);color:#1d1406;box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 4px 12px rgba(0,0,0,.45)}
+.t-real .go.host{background:linear-gradient(180deg,#2f7a57,#1f5a3f);color:#f4efe3}
+.t-real .start:disabled{background:#2a2620;color:#7d735f}
+.t-real .settings select,.t-real .mbtns button,.t-real .mrow button,.t-real .blindctl button,.t-real .pmenu button,
+.t-real .presets button,.t-real .pm button,.t-real .plist .x,.t-real .mhead .icon{background:rgba(40,33,24,.9);border:1px solid rgba(216,178,106,.35);color:#f4efe3}
+.t-real .mbtns .danger,.t-real .pmenu .danger{background:linear-gradient(180deg,#5b2622,#3e1714)}
+.t-real .joinbox .num{color:var(--gold)}
+.t-real .sheet .amt{color:var(--gold)}
+.t-real .sheet .go{background:linear-gradient(180deg,#c9a35a,#9c7a35)}
+.t-real .banner{background:rgba(14,12,9,.85);border:1px solid var(--gold);font-family:"Playfair Display","Shippori Mincho",serif}
+.t-real .me .bl,.t-real .me .mbtn{background:rgba(20,16,12,.7);border:1px solid rgba(216,178,106,.35)}
+.t-real .toast{background:rgba(14,12,9,.92);border:1px solid rgba(216,178,106,.45)}
+.t-real .final td{border-bottom-color:rgba(216,178,106,.2)}
+.t-real .final .plus{color:var(--gold)}
+.t-real .ginfo .plus{color:var(--gold)}
+.t-real .bet{background:linear-gradient(180deg,#e3c27e,#b48a3e);color:#1d1406}
+.t-real .hand-view.myturn::after{border-color:var(--gold)}
+
+/* ---------- チップ版：今のデザインのまま、丸い文字 ---------- */
+.t-chip .home h1,.t-chip .final h2{letter-spacing:.04em}
+
+/* ---------- 切り替えのボタン ---------- */
+.themesw{display:flex;gap:6px;margin:8px 0 14px}
+.themesw button{flex:1;padding:12px;border-radius:10px;background:var(--btn);font-weight:700}
+.themesw button.on{background:var(--gold);color:#222}
+.t-real .themesw button{background:rgba(40,33,24,.9);border:1px solid rgba(216,178,106,.35)}
+.t-real .themesw button.on{background:linear-gradient(180deg,#e3c27e,#b48a3e);color:#1d1406}
