@@ -195,3 +195,9 @@ body.t-chip,.t-chip button,.t-chip input,.t-chip select{font-family:"M PLUS Roun
 .stack.l{--W:32px;--H:12.8px;--T:4px}
 .bet.betstack.onfelt .stack.s{--W:32px;--H:12.8px;--T:4px}
 .board{--w:min(8.4vw,77px);gap:10px}
+/* 入口のボタンを、ロビーの「スタート」と同じ金色にそろえる（2026-11-23） */
+.t-real .go,.t-real .go.host,.t-real .start{background:linear-gradient(180deg,#e3c27e,#b48a3e);color:#1d1406}
+.t-chip .go,.t-chip .go.host,.t-chip .start{background:var(--raise);color:#222}
+/* WIN：☰の左側（同じ高さ）に、1.2倍で */
+.stage .banner{top:0;right:62px;font-size:26px;padding:12px 22px}
+.stage .banner small{font-size:17px}
