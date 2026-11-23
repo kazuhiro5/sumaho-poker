@@ -22,7 +22,7 @@ UI.phoneHTML = (S, ME) => {
   if (S.phase !== 'hand' && r) {
     const ws = Object.keys(r.won);
     const myWin = r.won[myId], h = r.hands && r.hands[ws[0]], mine = r.hands && r.hands[myId];
-    return `<div class="hand-view">${head}
+    return `<div class="hand-view ${myWin ? 'myturn' : ''}">${head}
       <div class="waitmsg"><b>${myWin ? `あなたの勝ち ＋${num(myWin)}` : `${ws.map((id) => esc(nameOf(S, id))).join('・')} の勝ち`}</b>
         ${h ? h.name : 'ほかの人が全員降りました'}${mine && !myWin ? `<br>あなたは ${mine.name}` : ''}
         ${r.rebought && r.rebought.includes(myId) ? '<br>チップをもう一度もらいました' : ''}</div>
