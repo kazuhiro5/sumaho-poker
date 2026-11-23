@@ -1,31 +1,32 @@
 /* 画面：スマホ（手札と操作）と、すべてのボタンの処理 */
-const PH = { peeking: false, sheet: false, armed: '', armTimer: null, amt: 0, leaveArmed: false };
+const PH = { menu: false, peeking: false, sheet: false, armed: '', armTimer: null, amt: 0, leaveArmed: false };
 
 UI.phoneHTML = (S, ME) => {
   const me = S.players.find((p) => p.id === myId) || { name: N.name, chips: 0 };
   const o = ME && ME.options;
-  const head = `<div class="me"><span class="nm">${esc(me.name)}</span><span class="ch">${num(me.chips)}</span></div>`;
-  const foot = `<div class="subrow"><span>部屋 ${esc(S.room)} ／ ${S.phase === 'lobby' ? '待機中' : `ブラインド ${S.blinds[0]}/${S.blinds[1]}`}</span>
-    <span>${S.phase !== 'lobby' ? `<button data-do="sitout">${me.sitOut ? '席に戻る' : '離席する'}</button>` : ''}
-    <button data-do="leave">${PH.leaveArmed ? 'もう一度で退出' : '退出する'}</button></span></div>`;
+  // 左上＝ブラインド、右上＝名前と☰（退出・離席・部屋番号・音はメニューの中）
+  const head = `<div class="me"><span class="bl">${S.phase === 'lobby' ? '待機中' : `ブラインド ${(S.handBlinds || S.blinds).join(' / ')}`}</span>
+    <span class="who"><span class="nm">${esc(me.name)}</span><button class="mbtn" data-do="pmenu">☰</button></span></div>`;
+  const tail = PH.menu ? phoneMenuHTML(S, me) : '';
+  const side = `<div class="side"><div><small>ポット</small><b>${num(S.pot || 0)}</b></div><div class="mine"><small>手元のチップ</small><b>${num(me.chips)}</b></div></div>`;
 
   if (S.phase === 'lobby') {
     const i = S.players.findIndex((p) => p.id === myId);
-    return `<div class="hand-view">${head}<div class="waitmsg"><b>席${i + 1}に座りました</b>iPadの「スタート」を待っています<br>参加 ${S.players.length}人</div>${foot}</div>`;
+    return `<div class="hand-view">${head}<div class="waitmsg"><b>席${i + 1}に座りました</b>iPadの「スタート」を待っています<br>参加 ${S.players.length}人</div>${tail}</div>`;
   }
   if (!ME || !ME.hole) {
-    const msg = me.out ? 'チップがなくなりました。見て楽しんでください' : me.sitOut ? '離席中です。「席に戻る」で次のゲームから入ります' : '次のゲームから入ります';
-    return `<div class="hand-view">${head}<div class="minib">${boardHTML(S.board)}</div><div class="waitmsg"><b>${msg}</b></div>${foot}</div>`;
+    const msg = me.out ? 'チップがなくなりました。見て楽しんでください' : me.sitOut ? '離席中です。☰の「席に戻る」で次のゲームから入ります' : '次のゲームから入ります';
+    return `<div class="hand-view">${head}<div class="waitmsg"><b>${msg}</b></div>${side}${tail}</div>`;
   }
   const r = S.result;
   if (S.phase !== 'hand' && r) {
     const ws = Object.keys(r.won);
     const myWin = r.won[myId], h = r.hands && r.hands[ws[0]], mine = r.hands && r.hands[myId];
-    return `<div class="hand-view">${head}<div class="minib">${boardHTML(S.board)}</div>
+    return `<div class="hand-view">${head}
       <div class="waitmsg"><b>${myWin ? `あなたの勝ち ＋${num(myWin)}` : `${ws.map((id) => esc(nameOf(S, id))).join('・')} の勝ち`}</b>
         ${h ? h.name : 'ほかの人が全員降りました'}${mine && !myWin ? `<br>あなたは ${mine.name}` : ''}
         ${r.rebought && r.rebought.includes(myId) ? '<br>チップをもう一度もらいました' : ''}</div>
-      <div class="peek"><div class="cards">${ME.hole.map((c) => card(c)).join('')}</div></div>${foot}</div>`;
+      <div class="peek"><div class="cards">${ME.hole.map((c) => card(c)).join('')}</div></div>${side}${tail}</div>`;
   }
   const faces = PH.peeking ? ME.hole.map((c) => card(c)).join('') : card('back') + card('back');
   let status;
@@ -38,23 +39,35 @@ UI.phoneHTML = (S, ME) => {
   const callLabel = !o ? 'コール' : o.canCheck ? 'チェック' : `コール ${num(o.toCall)}`;
   const raiseLabel = o && o.cur === 0 ? 'ベット' : 'レイズ';
   return `<div class="hand-view ${o ? 'myturn' : ''}">${head}
-    <div class="minib">${boardHTML(S.board)}</div>
     <div class="peek" id="peek">
       <div class="cards">${faces}</div>
       <div class="made">${PH.peeking && ME.made ? ME.made.name : ''}</div>
       <div class="hint">${PH.peeking ? '指を離すと隠れます' : '押している間だけ手札が見えます'}</div>
     </div>
     <div class="status">${status}${o && S.deadline && !S.paused ? `（残り <b data-until="${S.deadline}" data-sec="1">--</b>秒）` : ''}</div>
-    <div class="acts">
-      <button class="f ${PH.armed === 'fold' ? 'arm' : ''}" data-act="fold" ${dis}>${PH.armed === 'fold' ? (o && o.canCheck ? 'チェックできます。降りる？' : 'もう一度で降りる') : 'フォールド'}</button>
-      <button class="k" data-act="call" ${dis}>${callLabel}</button>
-      <button class="r" data-act="raise" ${o && o.canRaise && !S.paused ? '' : 'disabled'}>${raiseLabel}</button>
-      <button class="a ${PH.armed === 'allin' ? 'arm' : ''}" data-act="allin" ${dis}>${PH.armed === 'allin' ? 'もう一度で全部' : 'オールイン'}</button>
+    <div class="play">
+      <div class="acts">
+        <button class="f ${PH.armed === 'fold' ? 'arm' : ''}" data-act="fold" ${dis}>${PH.armed === 'fold' ? (o && o.canCheck ? 'チェックできます。降りる？' : 'もう一度で降りる') : 'フォールド'}</button>
+        <button class="k" data-act="call" ${dis}>${callLabel}</button>
+        <button class="r" data-act="raise" ${o && o.canRaise && !S.paused ? '' : 'disabled'}>${raiseLabel}</button>
+        <button class="a ${PH.armed === 'allin' ? 'arm' : ''}" data-act="allin" ${dis}>${PH.armed === 'allin' ? 'もう一度で全部' : 'オールイン'}</button>
+      </div>
+      ${side}
     </div>
-    ${foot}
-    ${PH.sheet && o ? raiseSheetHTML(o) : ''}
+    ${PH.sheet && o ? raiseSheetHTML(o) : ''}${tail}
   </div>`;
 };
+function phoneMenuHTML(S, me) {
+  return `<div class="sheet" data-close="1"><div class="in">
+    <div class="mhead"><h3>メニュー</h3><span>部屋 <b>${esc(S.room)}</b></span></div>
+    <div class="pmenu">
+      <button data-do="mute">${muted ? '🔇 音なし（押すと音あり）' : '🔊 音あり（押すと音なし）'}</button>
+      ${S.phase !== 'lobby' ? `<button data-do="sitout">${me.sitOut ? '席に戻る' : '離席する（次のゲームから休む）'}</button>` : ''}
+      <button data-do="leave" class="danger">${PH.leaveArmed ? 'もう一度押すと退出します' : '退出する'}</button>
+    </div>
+    <button class="cancel" data-close="1">閉じる</button>
+  </div></div>`;
+}
 function raiseSheetHTML(o) {
   return `<div class="sheet" data-close="1"><div class="in">
     <div class="amt" id="amt">${num(PH.amt)}</div>
@@ -82,7 +95,8 @@ document.addEventListener('click', (e) => {
   const b = e.target.closest('button,[data-close]');
   if (!b) return;
   const d = b.dataset;
-  if (d.close) { if (e.target === b) { PH.sheet = false; UI.menu = false; UI.render(); } return; }
+  if (d.close) { if (e.target === b) { PH.sheet = false; PH.menu = false; UI.menu = false; UI.render(); } return; }
+  if (d.do === 'pmenu') { PH.menu = true; PH.sheet = false; UI.render(); return; }
   // 入口
   if (d.do === 'join') {
     const room = ($('#room').value || '').replace(/\D/g, '').slice(0, 4), name = ($('#name').value || '').trim().slice(0, 8);
@@ -115,7 +129,7 @@ document.addEventListener('click', (e) => {
     return;
   }
   // 子（スマホ）
-  if (d.do === 'sitout') { const me = N.S.players.find((p) => p.id === myId); clientSend({ t: 'sitout', on: !(me && me.sitOut) }); return; }
+  if (d.do === 'sitout') { const me = N.S.players.find((p) => p.id === myId); clientSend({ t: 'sitout', on: !(me && me.sitOut) }); PH.menu = false; return; }
   if (d.do === 'leave') {
     if (PH.leaveArmed) { leaveRoom(); return; }
     PH.leaveArmed = true; UI.render(); setTimeout(() => { PH.leaveArmed = false; UI.render(); }, 5000); return;

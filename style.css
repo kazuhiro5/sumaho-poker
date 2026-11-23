@@ -201,3 +201,20 @@ button.pill{font-size:16px}
 .ginfo .plus{color:var(--gold);font-weight:800}
 .ginfo .minus{color:#e8a0a0}
 .mhead .icon{background:var(--btn);padding:8px 14px;border-radius:999px;width:auto;height:auto;font-size:15px}
+/* スマホ：左上ブラインド・右上名前と☰・ボタンは左に縦、右にポットと手元のチップ（2026-11-23） */
+.me{align-items:center}
+.me .bl{font-size:16px;font-weight:700;background:rgba(255,255,255,.08);padding:6px 12px;border-radius:999px}
+.me .who{display:flex;align-items:center;gap:8px}
+.me .mbtn{background:rgba(255,255,255,.1);width:42px;height:42px;border-radius:50%;font-size:20px}
+.play{display:grid;grid-template-columns:1.4fr 1fr;gap:10px}
+.play .acts{grid-template-columns:1fr;gap:8px}
+.play .acts button{padding:15px 8px}
+.side{display:flex;flex-direction:column;gap:10px}
+.side div{flex:1;background:rgba(255,255,255,.07);border-radius:14px;padding:10px;display:flex;flex-direction:column;justify-content:center;align-items:center}
+.side small{color:var(--muted);font-size:13px}
+.side b{font-size:30px;font-weight:800;line-height:1.2}
+.side .mine b{color:var(--gold)}
+.hand-view > .side{flex-direction:row}
+.pmenu{display:flex;flex-direction:column;gap:10px;margin:10px 0}
+.pmenu button{background:var(--btn);padding:16px;border-radius:12px;font-weight:700;font-size:17px}
+.pmenu .danger{background:var(--fold)}
