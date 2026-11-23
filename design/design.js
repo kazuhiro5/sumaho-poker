@@ -30,7 +30,9 @@ const DENOMS = [[1000, 'k1000'], [500, 'k500'], [100, 'k100'], [25, 'k25'], [10,
 function chipCols(amount, perCol = 8, maxCols = 3) {
   const cols = [];
   let rest = amount;
-  for (const [v, cls] of DENOMS) {
+  // 1枚だけの山にならないよう、3枚以上積める額のチップから使う（山が高く見える）
+  const start = Math.max(0, DENOMS.findIndex(([v]) => amount / v >= 3));
+  for (const [v, cls] of DENOMS.slice(start)) {
     let n = Math.floor(rest / v);
     if (!n) continue;
     rest -= n * v;
@@ -85,7 +87,7 @@ function handHTML() {
   const faces = peeking ? card('A♥') + card('Q♥') : card('back') + card('back');
   const side = D === '1'
     ? `<div class="side"><div><small>ポット</small><b>${num(POT)}</b></div><div class="mine"><small>手元のチップ</small><b>750</b></div></div>`
-    : `<div class="side chipside"><div><small>ポット</small>${stackHTML(POT, 'm')}</div><div class="mine"><small>手元のチップ</small>${stackHTML(750, 'm')}</div></div>`;
+    : `<div class="side chipside"><div><small>ポット</small>${stackHTML(POT, 'l')}</div><div class="mine"><small>手元のチップ</small>${stackHTML(750, 'l')}</div></div>`;
   return `<div class="hand-view myturn">
     <div class="me"><span class="bl">ブラインド 10 / 20</span><span class="who"><span class="nm">さき</span><button class="mbtn">☰</button></span></div>
     <div class="peek" id="peek"><div class="cards">${faces}</div>

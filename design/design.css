@@ -114,3 +114,5 @@
 .d3 .chipside .amt{font-size:24px}
 .d3 .chipside .mine .amt{color:var(--gold)}
 .chipside div{gap:6px}
+.d3 .c.empty{background:transparent;border:2px dashed rgba(216,178,106,.25);box-shadow:none}
+.d3 .amt,.d3 .potstack b,.d3 .c{font-variant-numeric:lining-nums tabular-nums}
