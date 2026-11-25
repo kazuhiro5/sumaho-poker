@@ -6,7 +6,11 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* 保存できなくても遊べる */ } },
   del(k) { try { localStorage.removeItem(k); } catch (e) { /* noop */ } },
 };
-const rid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+// 端末の秘密の番号。推測されないよう、暗号用の乱数で作る
+const rid = () => {
+  try { const a = new Uint32Array(3); crypto.getRandomValues(a); return Array.from(a, (x) => x.toString(36)).join('').slice(0, 20); }
+  catch (e) { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4); }
+};
 // タブを閉じても同じ人として戻れるよう、localStorageに置く
 const myId = store.get('sp-id') || (() => { const v = rid(); store.set('sp-id', v); return v; })();
 
@@ -15,6 +19,7 @@ const N = {
   peer: null, room: '', G: null, conns: new Map(), hostConn: null,
   S: null, ME: null, // 子：親から届いた最新の状態と、自分だけの情報
   deadline: 0, paused: false, turnKey: '', timers: {}, retry: 0, status: '',
+  pending: new Map(), // ゲームの途中に来た、まだ席のない人（iPadが「入れる」を押すまで待つ）
 };
 
 /* ---------- 親（iPad） ---------- */
@@ -27,7 +32,7 @@ function hostCreate(resume, tries = 0) {
     if (N.G) { N.status = ''; return; }
     N.role = 'host'; N.room = room; N.status = '';
     N.G = resume ? resume.G : PokerEngine.createGame({});
-    N.G.players.forEach((p) => { p.online = false; });
+    N.G.players.forEach((p) => { p.online = false; if (!p.key) p.key = p.id; }); // 古い保存データは id がそのまま秘密の番号
     N.paused = resume ? true : false; // 続きから始めた時は、親が「再開」を押すまで止める
     keepAwake(); hostSync(); guardBack();
   });
@@ -36,16 +41,17 @@ function hostCreate(resume, tries = 0) {
       if (!m || typeof m !== 'object') return;
       if (m.t === 'join') {
         c.pid = String(m.id || '').slice(0, 24);
-        const old = N.conns.get(c.pid);
-        if (old && old !== c) { try { old.close(); } catch (e) { /* noop */ } }
-        N.conns.set(c.pid, c);
+        if (!c.pid) return;
       }
-      if (c.pid) hostHandle(c.pid, m, c);
+      // 席が決まった接続（N.connsに入っているもの）からの操作だけを受け付ける
+      if (c.pid && (m.t === 'join' || N.conns.get(c.pid) === c)) hostHandle(c.pid, m, c);
     });
     c.on('close', () => {
+      const w = c.pid && N.pending.get(c.pid);
+      if (w && w.c === c) { N.pending.delete(c.pid); hostAfter(); return; }
       if (!c.pid || N.conns.get(c.pid) !== c) return;
       N.conns.delete(c.pid);
-      const p = N.G.players.find((x) => x.id === c.pid);
+      const p = PokerEngine.byKey(N.G, c.pid);
       if (p) p.online = false;
       hostAfter();
     });
@@ -63,21 +69,36 @@ function hostCreate(resume, tries = 0) {
   });
 }
 
+// pid は端末の秘密の番号（key）。ゲームの中の番号（p.id）とは別
+function hostAccept(pid, name, c) {
+  const old = N.conns.get(pid);
+  if (old && old !== c) { try { old.close(); } catch (e) { /* noop */ } }
+  N.conns.set(pid, c);
+  PokerEngine.addPlayer(N.G, pid, name);
+}
 function hostHandle(pid, m, c) {
-  const G = N.G, p = G.players.find((x) => x.id === pid);
+  const G = N.G, p = PokerEngine.byKey(G, pid);
   if (m.t === 'join') {
     const name = String(m.name || '').trim().slice(0, 8) || '名なし';
     if ((G.banned || []).includes(pid)) { c.send({ t: 'banned' }); setTimeout(() => { try { c.close(); } catch (e) { /* noop */ } }, 300); return; }
     if (!p && G.players.filter((x) => !x.left).length >= MAX_PLAYERS) { c.send({ t: 'full' }); return; }
-    PokerEngine.addPlayer(G, pid, name);
+    // 始まった後に来た新しい人は、iPadが「入れる」を押すまで待ってもらう（知らない人が勝手に入らないように）
+    if (!p && G.phase !== 'lobby') {
+      const was = N.pending.get(pid);
+      if (was && was.c !== c) { try { was.c.close(); } catch (e) { /* noop */ } }
+      N.pending.set(pid, { name, c });
+      c.send({ t: 'pending' });
+      hostAfter(); return;
+    }
+    hostAccept(pid, name, c);
   } else if (!p) return;
   else if (m.t === 'act') {
     if (N.paused) { if (c) c.send({ t: 'err', msg: '一時停止中です' }); return; }
-    const err = PokerEngine.act(G, pid, m.type, m.amount);
+    const err = PokerEngine.act(G, p.id, m.type, m.amount);
     if (err && c) c.send({ t: 'err', msg: err });
   } else if (m.t === 'sitout') {
     p.sitOut = !!m.on;
-    if (p.sitOut && G.hand && G.hand.toAct === pid) PokerEngine.autoAct(G);
+    if (p.sitOut && G.hand && G.hand.toAct === p.id) PokerEngine.autoAct(G);
   } else if (m.t === 'leave') {
     hostRemove(pid);
     if (c) setTimeout(() => { try { c.close(); } catch (e) { /* noop */ } }, 200);
@@ -86,28 +107,42 @@ function hostHandle(pid, m, c) {
 }
 
 function hostRemove(pid) {
-  const G = N.G, p = G.players.find((x) => x.id === pid);
+  const G = N.G, p = PokerEngine.byKey(G, pid);
   if (!p) return;
-  if (G.phase === 'lobby') G.players = G.players.filter((x) => x.id !== pid);
+  const id = p.id;
+  if (G.phase === 'lobby') G.players = G.players.filter((x) => x !== p);
   else {
     p.left = true; p.online = false;
-    if (G.hand && G.hand.toAct === pid) PokerEngine.autoAct(G);
-    else if (G.hand && G.phase === 'hand' && G.hand.ids.includes(pid)) G.hand.folded[pid] = true;
+    if (G.hand && G.hand.toAct === id) PokerEngine.autoAct(G);
+    else if (G.hand && G.phase === 'hand' && G.hand.ids.includes(id)) G.hand.folded[id] = true;
   }
   N.conns.delete(pid);
 }
 
-// BAN：部屋から出して、この部屋には入り直せなくする（端末のIDで見分ける）
-function hostBan(pid) {
+// iPadの画面のボタンには p.id（画面用の番号）が入っている。秘密の番号に直す
+const keyOf = (id) => { const p = N.G.players.find((x) => x.id === id); return p ? p.key || p.id : ''; };
+// BAN：部屋から出して、この部屋には入り直せなくする（端末の秘密の番号で見分ける）
+function hostBan(id) {
+  const pid = keyOf(id); if (!pid) return;
   N.G.banned = (N.G.banned || []).concat(pid);
   const c = N.conns.get(pid);
   if (c) { try { c.send({ t: 'banned' }); setTimeout(() => c.close(), 300); } catch (e) { /* noop */ } }
   hostRemove(pid); hostAfter();
 }
-function hostKick(pid) {
+function hostKick(id) {
+  const pid = keyOf(id); if (!pid) return;
   const c = N.conns.get(pid);
   if (c) { try { c.send({ t: 'kicked' }); setTimeout(() => c.close(), 300); } catch (e) { /* noop */ } }
   hostRemove(pid); hostAfter();
+}
+// 途中参加の希望：入れる／断る（n は画面に出した順番。秘密の番号は画面に出さない）
+function hostAdmit(n, ok) {
+  const entry = [...N.pending][n]; if (!entry) return;
+  const [pid, w] = entry;
+  N.pending.delete(pid);
+  if (ok && N.G.players.filter((x) => !x.left).length < MAX_PLAYERS) { hostAccept(pid, w.name, w.c); hostAfter(); return; }
+  try { w.c.send({ t: ok ? 'full' : 'denied' }); setTimeout(() => { try { w.c.close(); } catch (e) { /* noop */ } }, 300); } catch (e) { /* noop */ }
+  hostAfter();
 }
 
 // 一時停止：手番の残り時間を覚えておき、再開した時にその分だけ戻す
@@ -152,13 +187,15 @@ function hostAfter() {
 
 function hostView() {
   const v = PokerEngine.publicView(N.G);
+  v.pending = [...N.pending.values()].map((w) => w.name);
   v.room = N.room; v.deadline = N.deadline; v.paused = N.paused; v.nextAt = N.nextAt || 0; v.now = Date.now();
   return v;
 }
 function hostSync() {
   const v = hostView();
+  const pub = Object.assign({}, v); delete pub.pending; // 途中参加の希望はiPadだけに出す
   N.conns.forEach((c, pid) => {
-    if (c.open) { try { c.send({ t: 'state', s: v, me: PokerEngine.privateView(N.G, pid) }); } catch (e) { /* noop */ } }
+    if (c.open) { try { c.send({ t: 'state', s: pub, me: PokerEngine.privateView(N.G, pid) }); } catch (e) { /* noop */ } }
   });
   N.S = v;
   if (N.G.phase !== 'lobby') store.set('sp-host', JSON.stringify({ room: N.room, G: N.G, at: Date.now() }));
@@ -212,6 +249,8 @@ function connectHost() {
     else if (m.t === 'banned') { N.hostConn = null; UI.fail('この部屋には入れません（BANされました）。'); }
     else if (m.t === 'kicked') { N.hostConn = null; UI.fail('iPadの操作で部屋から外されました。'); }
     else if (m.t === 'closed') { N.hostConn = null; UI.fail('部屋が終わりました。'); }
+    else if (m.t === 'pending') { N.status = 'pending'; UI.render(); }
+    else if (m.t === 'denied') { N.hostConn = null; UI.fail('iPadで参加が断られました。'); }
   });
   c.on('close', () => { if (N.hostConn === c && N.status !== 'error') retryLater(); });
 }
@@ -245,6 +284,6 @@ function guardBack() {
   window.addEventListener('popstate', () => {
     if (N.role !== 'host' || !N.G || N.G.phase === 'end' || N.leaving) return;
     history.pushState({ stay: 1 }, '', location.href);
-    UI.toast('ゲーム中は戻れません。終わる時は ☰ の「ここで終わる」を使ってください');
+    UI.toast('ゲーム中は戻れません。終わる時は ☰ の「ゲームを終了する」を使ってください');
   });
 }

@@ -25,10 +25,16 @@
   const nm = (G, id) => (P(G, id) || {}).name || '？';
   function say(G, msg) { G.log.unshift(msg); G.log.length = Math.min(G.log.length, 30); }
 
-  function addPlayer(G, id, name) {
-    const p = P(G, id);
+  // key＝端末だけが知っている秘密の番号（本人の証明）。id＝画面に出す番号（全員に送る）。
+  // 2つを分けるのは、全員に送られるidを使って他の人になりすませないようにするため
+  const byKey = (G, key) => G.players.find((p) => (p.key || p.id) === key);
+  const newPid = () => 'p' + rnd(1e9).toString(36) + rnd(1e9).toString(36);
+  function addPlayer(G, key, name) {
+    const p = byKey(G, key);
     if (p) { p.name = name; p.online = true; p.left = false; return p; }
-    const np = { id, name, chips: G.settings.stack, online: true, left: false, sitOut: false, rebuys: 0, out: false };
+    let id = newPid();
+    while (P(G, id)) id = newPid();
+    const np = { id, key, name, chips: G.settings.stack, online: true, left: false, sitOut: false, rebuys: 0, out: false };
     G.players.push(np);
     return np;
   }
@@ -257,8 +263,8 @@
       pots: pots(h).map((p) => p.amount), result: h.result });
     return v;
   }
-  function privateView(G, id) {
-    const h = G.hand, p = P(G, id);
+  function privateView(G, key) {
+    const h = G.hand, p = byKey(G, key), id = p ? p.id : '';
     const me = { id, chips: p ? p.chips : 0, sitOut: p ? p.sitOut : false };
     if (h && h.hole[id]) {
       me.hole = h.hole[id];
@@ -269,5 +275,5 @@
     return me;
   }
 
-  g.PokerEngine = { createGame, addPlayer, startGame, startHand, act, autoAct, options, publicView, privateView, pots, LEVELS, blinds };
+  g.PokerEngine = { createGame, addPlayer, startGame, startHand, act, autoAct, options, publicView, privateView, pots, LEVELS, blinds, byKey };
 })(typeof window !== 'undefined' ? window : globalThis);

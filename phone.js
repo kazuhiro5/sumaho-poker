@@ -1,7 +1,10 @@
 /* 画面：スマホ（手札と操作）と、すべてのボタンの処理 */
 const PH = { menu: false, peeking: false, sheet: false, armed: '', armTimer: null, amt: 0, leaveArmed: false };
 
+// 自分の画面用の番号（親から届く）。端末の秘密の番号 myId とは別
+const meId = () => (N.ME && N.ME.id) || '';
 UI.phoneHTML = (S, ME) => {
+  const myId = meId();
   const me = S.players.find((p) => p.id === myId) || { name: N.name, chips: 0 };
   const o = ME && ME.options;
   // 左上＝ブラインド、右上＝名前と☰（退出・離席・部屋番号・音はメニューの中）
@@ -127,6 +130,8 @@ document.addEventListener('click', (e) => {
       hostAfter(); return;
     }
     if (d.ban) { if (confirmTwice(b, 'もう一度でBAN')) hostBan(d.ban); return; }
+    if (d.admit !== undefined) { hostAdmit(+d.admit, true); return; }
+    if (d.deny !== undefined) { hostAdmit(+d.deny, false); return; }
     if (d.add) { const p = G.players.find((x) => x.id === d.add); if (p) { p.chips += G.settings.stack; p.rebuys++; p.out = false; } hostAfter(); return; }
     if (d.do === 'start') { PokerEngine.startGame(G, Date.now()); UI.beep([523, 659, 784]); hostAfter(); return; }
     // ☰を開いたら一時停止（手番の時間・次のゲームまでの時間・スマホの操作が止まる）
@@ -144,7 +149,7 @@ document.addEventListener('click', (e) => {
     return;
   }
   // 子（スマホ）
-  if (d.do === 'sitout') { const me = N.S.players.find((p) => p.id === myId); clientSend({ t: 'sitout', on: !(me && me.sitOut) }); PH.menu = false; UI.render(); return; }
+  if (d.do === 'sitout') { const me = N.S.players.find((p) => p.id === meId()); clientSend({ t: 'sitout', on: !(me && me.sitOut) }); PH.menu = false; UI.render(); return; }
   if (d.do === 'leave') {
     if (PH.leaveArmed) { leaveRoom(); return; }
     PH.leaveArmed = true; UI.render(); setTimeout(() => { PH.leaveArmed = false; UI.render(); }, 5000); return;

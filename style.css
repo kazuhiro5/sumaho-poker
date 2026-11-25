@@ -218,3 +218,9 @@ button.pill{font-size:16px}
 .pmenu{display:flex;flex-direction:column;gap:10px;margin:10px 0}
 .pmenu button{background:var(--btn);padding:16px;border-radius:12px;font-weight:700;font-size:17px}
 .pmenu .danger{background:var(--fold)}
+/* 途中参加の希望（iPadの上の真ん中） */
+.admit{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:7;display:flex;flex-direction:column;gap:8px;max-width:min(640px,calc(100% - 260px))}
+.admit .arow{display:flex;align-items:center;gap:10px;background:rgba(10,10,10,.9);border:1px solid var(--gold);border-radius:14px;padding:10px 12px;font-size:17px}
+.admit .arow span{flex:1}
+.admit .go,.admit .cancel{width:auto;padding:10px 18px;font-size:16px;border-radius:10px;margin:0}
+.admit .cancel{background:rgba(255,255,255,.12);color:inherit}

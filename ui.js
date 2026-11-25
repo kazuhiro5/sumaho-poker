@@ -265,15 +265,21 @@ function tableHTML(S) {
     banner = `<div class="banner"><span class="win">WIN</span> ${ws.map((id) => esc(nameOf(S, id))).join('・')} ＋${num(r.won[ws[0]])}
       <small>${h ? `${h.name}${h.detail ? '（' + h.detail + '）' : ''}` : 'ほかの人が全員降りました'}</small></div>`;
   }
-  if (S.phase === 'waiting') banner = `<div class="banner">遊べる人が2人未満です<small>参加者が来たら「次のゲーム」を押してください</small></div>`;
+  if (S.phase === 'waiting') banner = `<div class="banner">遊べる人が2人未満です<small>2人以上そろうと、自動で次のゲームが始まります</small></div>`;
   return `<div class="table-view">${topbarHTML(S)}
     <div class="stage"><div class="felt"><div class="feltmark">${UI.theme === 'real' ? 'TEXAS HOLD’EM' : ''}</div></div>
       ${seats.map((p, i) => seatHTML(S, p, i, seats.length)).join('')}
       ${banner}<div class="center">${center}</div>
     </div>
-    ${gameInfoHTML(S)}${timerHTML(S)}
+    ${gameInfoHTML(S)}${timerHTML(S)}${pendingHTML(S)}
     ${UI.menu ? menuHTML(S) : ''}
   </div>`;
+}
+// 途中参加の希望（iPadだけに出る）
+function pendingHTML(S) {
+  if (!S.pending || !S.pending.length) return '';
+  return `<div class="admit">${S.pending.map((name, i) => `<div class="arow"><span>${ic('person_add')} <b>${esc(name)}</b> が参加したがっています</span>
+    <button class="go" data-admit="${i}">入れる</button><button class="cancel" data-deny="${i}">断る</button></div>`).join('')}</div>`;
 }
 function menuHTML(S) {
   const rows = S.players.filter((p) => !p.left).map((p) => `<div class="mrow"><span>${esc(p.name)}　${num(p.chips)}${p.rebuys ? `（もらい直し${p.rebuys}回）` : ''}</span>
@@ -315,6 +321,7 @@ function resultHTML(S, forHost) {
 UI.render = () => {
   const app = $('#app');
   if (N.status === 'error') { app.innerHTML = `<div class="home"><h1>うまくいきませんでした</h1><p>${esc(UI.err)}</p><button class="go" data-do="home">最初の画面へ</button></div>`; return; }
+  if (N.status === 'pending') { app.innerHTML = `<div class="home"><h1>参加を待っています</h1><p>ゲームが始まっているので、iPadで「入れる」が押されるまで待ってください。</p></div>`; return; }
   if (N.status === 'connecting') { app.innerHTML = `<div class="home"><h1>つないでいます…</h1>${N.connMsg ? `<p>${esc(N.connMsg)}</p>` : ''}</div>`; return; }
   const S = N.S;
   if (!N.role || !S) { app.innerHTML = homeHTML(); return; }
