@@ -119,7 +119,7 @@ function homeHTML() {
     ? `<button class="sub" data-do="resume">前のゲームを続ける（部屋 ${esc(saved.room)}）</button>` : '';
   const room = qs.get('room') || '';
   return `<div class="home">
-    <h1>スマホ版ポーカー</h1>
+    <h1>Simple Poker</h1>
     <p>iPadがテーブル、みんなのスマホが手札。<br>同じWi-Fiにつないで遊んでください。</p>
     <div class="pick">
       <div class="panel">
@@ -134,6 +134,8 @@ function homeHTML() {
         <button class="go host" data-do="create">部屋を作る</button>${resume}
       </div>`}
     </div>
+    <p class="notice">チップは遊ぶための数字です。お金や物を賭けないでください。<br>端末どうしを直接つなぐため、同じ部屋の人に通信用の住所（IPアドレス）が伝わります。名前やゲームの内容は保存しません。<br>
+      <a href="https://kazuhiro5.github.io/binhi-mura/simple-poker.html" target="_blank" rel="noopener">このアプリについて</a>　<a href="https://kazuhiro5.github.io/binhi-mura/" target="_blank" rel="noopener">Binhi村の決まり</a>　<a href="https://line.me/R/ti/p/@491tbmdm" target="_blank" rel="noopener">お問い合わせ（村人A）</a></p>
   </div>`;
 }
 

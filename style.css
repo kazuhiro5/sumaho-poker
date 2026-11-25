@@ -224,3 +224,6 @@ button.pill{font-size:16px}
 .admit .arow span{flex:1}
 .admit .go,.admit .cancel{width:auto;padding:10px 18px;font-size:16px;border-radius:10px;margin:0}
 .admit .cancel{background:rgba(255,255,255,.12);color:inherit}
+/* 入口の注意書き */
+.home .notice{font-size:12px;max-width:560px;opacity:.85}
+.home .notice a{color:var(--gold);margin:0 4px;white-space:nowrap}
